@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -123,14 +124,14 @@ fun CalcScreen(vm: AppViewModel) {
                 }
             }
         } else {
-            val basicH = ((maxHeight * if (sciOpen) 0.40f else 0.52f) / 5).coerceIn(44.dp, 80.dp)
+            val basicH = ((maxHeight * if (sciOpen) 0.44f else 0.56f) / 5).coerceIn(46.dp, 88.dp)
             Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
                 Display(vm, Modifier.weight(1f))
                 Toolbar(vm, { showHistory = true }, { showFunctions = true }, { showStore = true }, ctx, compact = false)
                 AnimatedVisibility(sciOpen) { SciPad(vm, (basicH * 0.66f).coerceAtLeast(36.dp)) }
                 Spacer(Modifier.height(6.dp))
                 BasicPad(vm, basicH)
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
             }
         }
     }
@@ -145,28 +146,34 @@ private fun Display(vm: AppViewModel, modifier: Modifier) {
     val comma = vm.settings.style.decimalComma
     val shown = Fmt.displayExpr(vm.expr, comma)
     Column(
-        modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+        modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp),
         horizontalAlignment = Alignment.End,
-        verticalArrangement = Arrangement.Bottom,
     ) {
         if (vm.evaluated && vm.lastExpr != null) {
             Text(
                 Fmt.displayExpr(vm.lastExpr!!, comma) + " =",
                 color = Palette.TextDim,
-                fontSize = 20.sp,
+                fontSize = 19.sp,
                 textAlign = TextAlign.End,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.clickable { vm.setExpression(vm.lastExpr!!) },
             )
         }
+        val shownLength = if (vm.evaluated && vm.lastValue != null) vm.format(vm.lastValue!!).length else shown.length
         val size: TextUnit = when {
-            shown.length < 11 -> 52.sp
-            shown.length < 16 -> 42.sp
-            shown.length < 24 -> 34.sp
-            else -> 28.sp
+            shownLength < 10 -> 46.sp
+            shownLength < 14 -> 38.sp
+            shownLength < 19 -> 31.sp
+            shownLength < 27 -> 26.sp
+            else -> 22.sp
         }
-        Box(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState(), reverseScrolling = true)) {
+        // Liczba trzyma się dolnej krawędzi, a wolne miejsce zostaje nad nią; wiersz jest
+        // wyraźnie wyższy od znaków, inaczej cyfry obcinają się u góry.
+        Box(
+            Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState(), reverseScrolling = true),
+            contentAlignment = Alignment.BottomEnd,
+        ) {
             if (vm.evaluated && vm.lastValue != null) {
                 Text(
                     vm.format(vm.lastValue!!),
@@ -174,7 +181,7 @@ private fun Display(vm: AppViewModel, modifier: Modifier) {
                     fontSize = size,
                     fontWeight = FontWeight.Light,
                     textAlign = TextAlign.End,
-                    lineHeight = size * 1.1f,
+                    lineHeight = size * 1.32f,
                     modifier = Modifier.fillMaxWidth(),
                 )
             } else {
@@ -182,11 +189,12 @@ private fun Display(vm: AppViewModel, modifier: Modifier) {
             }
         }
         val err = vm.error
-        when {
-            err != null -> Text(err, color = Palette.Error, fontSize = 18.sp)
-            vm.preview != null -> Text("= " + vm.preview, color = Palette.TextDim, fontSize = 24.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            vm.evaluated && vm.lastValue != null -> AltFormats(vm, vm.lastValue!!)
-            else -> Spacer(Modifier.height(30.dp))
+        Box(Modifier.fillMaxWidth().heightIn(min = 32.dp), contentAlignment = Alignment.CenterEnd) {
+            when {
+                err != null -> Text(err, color = Palette.Error, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                vm.preview != null -> Text("= " + vm.preview, color = Palette.TextDim, fontSize = 23.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                vm.evaluated && vm.lastValue != null -> AltFormats(vm, vm.lastValue!!)
+            }
         }
     }
 }
@@ -207,7 +215,7 @@ private fun ExpressionText(vm: AppViewModel, shown: String, size: TextUnit) {
         fontSize = size,
         fontWeight = FontWeight.Light,
         textAlign = TextAlign.End,
-        lineHeight = size * 1.1f,
+        lineHeight = size * 1.32f,
         onTextLayout = { layout = it },
         modifier = Modifier
             .fillMaxWidth()
