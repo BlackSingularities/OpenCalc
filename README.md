@@ -1,5 +1,7 @@
 # OpenCalc
 
+<img src="artwork/app-icon.png" alt="OpenCalc" width="128" />
+
 **Kalkulator naukowy, wykresy, przeliczniki jednostek i kilkanaście narzędzi w jednej aplikacji na Androida.** Czarno-biały interfejs w stylu OpenPDF, bez reklam, śledzenia i konta – wszystko liczy się w telefonie.
 
 ## Pobieranie

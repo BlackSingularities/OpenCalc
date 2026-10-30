@@ -1,5 +1,10 @@
 # Historia zmian
 
+## 1.0.3
+
+- Nowa profesjonalna ikona aplikacji i dopasowane kolorystycznie jasne tło.
+- Spójne ikony adaptacyjne, monochromatyczne i ekran uruchamiania.
+
 ## 1.0.2
 - Kalkulator mieści się na każdym ekranie: wysokość klawiszy i wyświetlacza liczy się z tego, co faktycznie zostaje po paskach narzędzi, więc przy rozwiniętych funkcjach naukowych nadal widać wyrażenie i cały wynik.
 - Rozmiar wyniku, podglądu i opisów skaluje się razem z wysokością wyświetlacza; podpisy klawiszy dopasowują się do ich wysokości.
