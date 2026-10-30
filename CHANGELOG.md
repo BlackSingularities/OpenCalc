@@ -1,5 +1,11 @@
 # Historia zmian
 
+## 1.0.2
+- Kalkulator mieści się na każdym ekranie: wysokość klawiszy i wyświetlacza liczy się z tego, co faktycznie zostaje po paskach narzędzi, więc przy rozwiniętych funkcjach naukowych nadal widać wyrażenie i cały wynik.
+- Rozmiar wyniku, podglądu i opisów skaluje się razem z wysokością wyświetlacza; podpisy klawiszy dopasowują się do ich wysokości.
+- Na wąskich telefonach pasek narzędzi używa mniejszych ikon, więc nic nie wypada za krawędź.
+- Na bardzo niskich ekranach całość da się przewinąć, zamiast ucinać górę.
+
 ## 1.0.1
 - Dolny pasek zakładek bez tła i obramowania, przy samej krawędzi ekranu; wybraną zakładkę znaczy biały podpis z kropką.
 - Pole wyniku nie obcina już cyfr u góry: wiersz jest wyższy od znaków, a liczba trzyma się dolnej krawędzi zamiast uciekać pod pasek stanu.

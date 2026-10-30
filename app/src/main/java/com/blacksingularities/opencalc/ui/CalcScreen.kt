@@ -111,24 +111,46 @@ fun CalcScreen(vm: AppViewModel) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val landscape = maxWidth > maxHeight
         val sciOpen = vm.settings.sciOpen
+        val dense = maxWidth < 380.dp
+        // Paski narzędzi i odstępy są stałe, więc klawiatury dobieramy z tego, co naprawdę
+        // zostaje na ekranie — inaczej przy otwartych funkcjach naukowych wyświetlacz
+        // schodzi do zera i nie widać ani wyrażenia, ani górnej krawędzi cyfr.
+        val toolbarH = if (dense) 74.dp else 82.dp
         if (landscape) {
-            val keyH = ((maxHeight - 24.dp) / 5).coerceAtMost(64.dp)
+            val avail = maxHeight - 16.dp - toolbarH
+            val keyH = ((avail - 72.dp - 20.dp) / 8.8f).coerceIn(32.dp, 64.dp)
             Row(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Column(Modifier.weight(1.1f).fillMaxHeight()) {
-                    Display(vm, Modifier.weight(1f))
-                    Toolbar(vm, { showHistory = true }, { showFunctions = true }, { showStore = true }, ctx, compact = true)
-                    SciPad(vm, keyH * 0.62f)
+                    Display(vm, Modifier.weight(1f).heightIn(min = 64.dp), scale = 0.8f)
+                    Toolbar(vm, { showHistory = true }, { showFunctions = true }, { showStore = true }, ctx, compact = true, dense = dense)
+                    SciPad(vm, (keyH * 0.62f).coerceAtLeast(26.dp))
                 }
                 Column(Modifier.weight(0.9f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
                     BasicPad(vm, keyH)
                 }
             }
         } else {
-            val basicH = ((maxHeight * if (sciOpen) 0.44f else 0.56f) / 5).coerceIn(46.dp, 88.dp)
-            Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
-                Display(vm, Modifier.weight(1f))
-                Toolbar(vm, { showHistory = true }, { showFunctions = true }, { showStore = true }, ctx, compact = false)
-                AnimatedVisibility(sciOpen) { SciPad(vm, (basicH * 0.66f).coerceAtLeast(36.dp)) }
+            val avail = maxHeight - toolbarH - 14.dp
+            val displayMin = if (sciOpen) 104.dp else 148.dp
+            // Wiersze: 5 podstawowych + 0,7 na backspace, a klawisze naukowe mają 0,62 wysokości
+            // podstawowego klawisza w 5 wierszach; stałe to odstępy między wierszami.
+            val rowsFactor = if (sciOpen) 8.8f else 5.7f
+            val gaps = if (sciOpen) 60.dp else 40.dp
+            val basicH = ((avail - displayMin - gaps) / rowsFactor).coerceIn(40.dp, 88.dp)
+            val sciH = (basicH * 0.62f).coerceAtLeast(28.dp)
+            val padsH = basicH * 5.7f + gaps + (if (sciOpen) sciH * 5 else 0.dp)
+            val displayH = (avail - padsH).coerceAtLeast(56.dp)
+            // Na bardzo niskich ekranach nawet najmniejsze klawisze mogą nie zmieścić się
+            // razem z wyświetlaczem – wtedy całość daje się przewinąć, nic nie jest ucięte.
+            Column(
+                Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp),
+            ) {
+                Display(vm, Modifier.height(displayH), scale = (displayH / 160.dp).coerceIn(0.6f, 1f))
+                Toolbar(vm, { showHistory = true }, { showFunctions = true }, { showStore = true }, ctx, compact = false, dense = dense)
+                AnimatedVisibility(sciOpen) { SciPad(vm, sciH) }
                 Spacer(Modifier.height(6.dp))
                 BasicPad(vm, basicH)
                 Spacer(Modifier.height(4.dp))
@@ -142,7 +164,7 @@ fun CalcScreen(vm: AppViewModel) {
 }
 
 @Composable
-private fun Display(vm: AppViewModel, modifier: Modifier) {
+private fun Display(vm: AppViewModel, modifier: Modifier, scale: Float = 1f) {
     val comma = vm.settings.style.decimalComma
     val shown = Fmt.displayExpr(vm.expr, comma)
     Column(
@@ -153,7 +175,7 @@ private fun Display(vm: AppViewModel, modifier: Modifier) {
             Text(
                 Fmt.displayExpr(vm.lastExpr!!, comma) + " =",
                 color = Palette.TextDim,
-                fontSize = 19.sp,
+                fontSize = 19.sp * scale,
                 textAlign = TextAlign.End,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -167,7 +189,7 @@ private fun Display(vm: AppViewModel, modifier: Modifier) {
             shownLength < 19 -> 31.sp
             shownLength < 27 -> 26.sp
             else -> 22.sp
-        }
+        } * scale
         // Liczba trzyma się dolnej krawędzi, a wolne miejsce zostaje nad nią; wiersz jest
         // wyraźnie wyższy od znaków, inaczej cyfry obcinają się u góry.
         Box(
@@ -189,10 +211,10 @@ private fun Display(vm: AppViewModel, modifier: Modifier) {
             }
         }
         val err = vm.error
-        Box(Modifier.fillMaxWidth().heightIn(min = 32.dp), contentAlignment = Alignment.CenterEnd) {
+        Box(Modifier.fillMaxWidth().heightIn(min = 32.dp * scale), contentAlignment = Alignment.CenterEnd) {
             when {
-                err != null -> Text(err, color = Palette.Error, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                vm.preview != null -> Text("= " + vm.preview, color = Palette.TextDim, fontSize = 23.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                err != null -> Text(err, color = Palette.Error, fontSize = 17.sp * scale, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                vm.preview != null -> Text("= " + vm.preview, color = Palette.TextDim, fontSize = 23.sp * scale, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 vm.evaluated && vm.lastValue != null -> AltFormats(vm, vm.lastValue!!)
             }
         }
@@ -303,9 +325,10 @@ fun dms(v: Double): String {
 }
 
 @Composable
-private fun Toolbar(vm: AppViewModel, onHistory: () -> Unit, onFunctions: () -> Unit, onStore: () -> Unit, ctx: android.content.Context, compact: Boolean) {
+private fun Toolbar(vm: AppViewModel, onHistory: () -> Unit, onFunctions: () -> Unit, onStore: () -> Unit, ctx: android.content.Context, compact: Boolean, dense: Boolean = false) {
     val s = vm.settings
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    val iconSize = if (dense) 34.dp else 40.dp
+    Row(Modifier.fillMaxWidth().padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(
             when (s.angle) {
                 AngleMode.DEG -> "DEG"
@@ -328,14 +351,14 @@ private fun Toolbar(vm: AppViewModel, onHistory: () -> Unit, onFunctions: () -> 
             Text("M", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.padding(start = 10.dp))
         }
         Spacer(Modifier.weight(1f))
-        ToolIcon(Icons.Rounded.History, "Historia", onHistory)
-        ToolIcon(Icons.Rounded.Functions, "Funkcje i stałe", onFunctions)
-        ToolIcon(Icons.Rounded.ContentCopy, "Kopiuj wynik") {
+        ToolIcon(Icons.Rounded.History, "Historia", iconSize, onHistory)
+        ToolIcon(Icons.Rounded.Functions, "Funkcje i stałe", iconSize, onFunctions)
+        ToolIcon(Icons.Rounded.ContentCopy, "Kopiuj wynik", iconSize) {
             val text = vm.lastValue?.takeIf { vm.evaluated }?.let { vm.format(it) } ?: vm.preview ?: Fmt.displayExpr(vm.expr, s.style.decimalComma)
             copyText(ctx, text.replace(" ", ""))
             vm.message = "Skopiowano: $text"
         }
-        ToolIcon(Icons.Rounded.ContentPaste, "Wklej") {
+        ToolIcon(Icons.Rounded.ContentPaste, "Wklej", iconSize) {
             val t = pasteText(ctx)?.trim()
             if (t.isNullOrEmpty()) vm.message = "Schowek jest pusty" else {
                 // Z przecinkiem dziesiętnym zamieniamy „1,5” na „1.5”, a średnik na separator argumentów.
@@ -343,15 +366,15 @@ private fun Toolbar(vm: AppViewModel, onHistory: () -> Unit, onFunctions: () -> 
                 vm.insert(clean)
             }
         }
-        ToolIcon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, "Kursor w lewo") { vm.moveCursor(-1) }
-        ToolIcon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, "Kursor w prawo") { vm.moveCursor(1) }
+        ToolIcon(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, "Kursor w lewo", iconSize) { vm.moveCursor(-1) }
+        ToolIcon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, "Kursor w prawo", iconSize) { vm.moveCursor(1) }
         if (!compact) {
-            ToolIcon(if (s.sciOpen) Icons.Rounded.ExpandMore else Icons.Rounded.ExpandLess, if (s.sciOpen) "Ukryj funkcje naukowe" else "Pokaż funkcje naukowe") {
+            ToolIcon(if (s.sciOpen) Icons.Rounded.ExpandMore else Icons.Rounded.ExpandLess, if (s.sciOpen) "Ukryj funkcje naukowe" else "Pokaż funkcje naukowe", iconSize) {
                 vm.updateSettings(s.copy(sciOpen = !s.sciOpen))
             }
         }
     }
-    Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(Modifier.fillMaxWidth().padding(bottom = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(
             "MC" to { vm.memoryClear() },
             "MR" to { vm.memoryRecall() },
@@ -369,16 +392,16 @@ private fun Toolbar(vm: AppViewModel, onHistory: () -> Unit, onFunctions: () -> 
                     .weight(1f)
                     .clip(RoundedCornerShape(50))
                     .clickable(onClick = action)
-                    .padding(vertical = 6.dp),
+                    .padding(vertical = if (dense) 4.dp else 6.dp),
             )
         }
     }
 }
 
 @Composable
-private fun ToolIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, desc: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(40.dp)) {
-        Icon(icon, desc, tint = Palette.TextDim, modifier = Modifier.size(22.dp))
+private fun ToolIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, desc: String, size: Dp = 40.dp, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(size)) {
+        Icon(icon, desc, tint = Palette.TextDim, modifier = Modifier.size(size * 0.55f))
     }
 }
 
@@ -439,7 +462,7 @@ private fun SciPad(vm: AppViewModel, keyH: Dp) {
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         rows.forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                row.forEach { k -> KeyButton(vm, k, Modifier.weight(1f).height(keyH), fontSize = 15.sp) }
+                row.forEach { k -> KeyButton(vm, k, Modifier.weight(1f).height(keyH), fontSize = (keyH.value * 0.38f).coerceIn(11f, 15f).sp) }
             }
         }
     }
@@ -464,7 +487,7 @@ private fun BasicPad(vm: AppViewModel, keyH: Dp) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         rows.forEachIndexed { i, row ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                row.forEach { k -> KeyButton(vm, k, Modifier.weight(1f).height(keyH), fontSize = 26.sp) }
+                row.forEach { k -> KeyButton(vm, k, Modifier.weight(1f).height(keyH), fontSize = (keyH.value * 0.42f).coerceIn(17f, 26f).sp) }
             }
             if (i == 0) Unit
         }
