@@ -400,7 +400,7 @@ private fun SciPad(vm: AppViewModel, keyH: Dp) {
             Key(if (h) "hyp ●" else "hyp", KeyKind.FN) { vm.hyp = !vm.hyp },
             Key("(", KeyKind.FN) { vm.insert("(") },
             Key(")", KeyKind.FN) { vm.insert(")") },
-            Key(if (s) "rand" else "Ans", KeyKind.FN, after { if (s) vm.insert("rand()") else vm.insert("Ans") }),
+            Key(if (s) "rand" else "Ans", KeyKind.FN, action = after { if (s) vm.insert("rand()") else vm.insert("Ans") }),
         ),
         listOf("sin", "cos", "tan").map { b -> Key(trigLabel(b), KeyKind.FN, action = after { vm.insertFunction(trig(b)) }) } + listOf(
             Key(if (s) "eˣ" else "ln", KeyKind.FN, action = after { if (s) vm.insert("e^(") else vm.insertFunction("ln") }),
