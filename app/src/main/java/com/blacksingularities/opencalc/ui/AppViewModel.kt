@@ -296,7 +296,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ——— Wykresy ———
-    fun setGraphs(list: List<GraphFn>) {
+    fun updateGraphs(list: List<GraphFn>) {
         graphs = list
         prefs.graphs = list
     }

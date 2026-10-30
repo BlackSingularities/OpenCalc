@@ -4,6 +4,9 @@ name: Build & Release
 on:
   push:
     tags: ['v*']
+  # Ręczne uruchomienie tylko sprawdza, czy projekt się kompiluje i testy przechodzą –
+  # wydanie powstaje nadal wyłącznie z tagu (zadanie `release` jest nim warunkowane).
+  workflow_dispatch:
 
 permissions:
   contents: write

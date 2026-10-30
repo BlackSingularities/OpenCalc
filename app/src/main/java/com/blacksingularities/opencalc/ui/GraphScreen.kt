@@ -262,8 +262,8 @@ fun GraphScreen(vm: AppViewModel) {
                 }
             }
             graphs.forEachIndexed { i, g ->
-                FunctionRow(i, g, parsed.getOrNull(i)?.third, onChange = { ng -> vm.setGraphs(graphs.toMutableList().also { it[i] = ng }) }) {
-                    vm.setGraphs(graphs.filterIndexed { j, _ -> j != i })
+                FunctionRow(i, g, parsed.getOrNull(i)?.third, onChange = { ng -> vm.updateGraphs(graphs.toMutableList().also { it[i] = ng }) }) {
+                    vm.updateGraphs(graphs.filterIndexed { j, _ -> j != i })
                 }
             }
             if (graphs.size < 8) {
@@ -274,7 +274,7 @@ fun GraphScreen(vm: AppViewModel) {
                         .clickable {
                             val used = graphs.map { it.color }.toSet()
                             val color = (0 until Palette.Graph.size).firstOrNull { it !in used } ?: graphs.size
-                            vm.setGraphs(graphs + GraphFn("", color))
+                            vm.updateGraphs(graphs + GraphFn("", color))
                         }
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
