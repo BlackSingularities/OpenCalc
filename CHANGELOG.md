@@ -1,5 +1,10 @@
 # Historia zmian
 
+## 1.0.1
+- Dolny pasek zakładek bez tła i obramowania, przy samej krawędzi ekranu; wybraną zakładkę znaczy biały podpis z kropką.
+- Pole wyniku nie obcina już cyfr u góry: wiersz jest wyższy od znaków, a liczba trzyma się dolnej krawędzi zamiast uciekać pod pasek stanu.
+- Rozmiar wyniku dobiera się płynniej do długości, klawisze są nieco większe na wysokich ekranach.
+
 ## 1.0.0
 - Kalkulator naukowy: funkcje trygonometryczne, hiperboliczne, logarytmy, potęgi i pierwiastki, silnia, kombinatoryka, NWD i NWW, tryby DEG/RAD/GRAD.
 - Edycja z kursorem, podgląd wyniku na żywo, mnożenie domyślne (2π, 3(x+1)), procenty jak w kalkulatorach biurowych.
