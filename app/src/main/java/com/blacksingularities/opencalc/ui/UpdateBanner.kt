@@ -71,7 +71,7 @@ fun UpdateBanner(vm: AppViewModel, modifier: Modifier = Modifier) {
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(50))
+                            .clip(buttonShape())
                             .background(Color.White)
                             .clickable { vm.updateNow() }
                             .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -85,7 +85,7 @@ fun UpdateBanner(vm: AppViewModel, modifier: Modifier = Modifier) {
                         modifier = Modifier
                             .padding(start = 6.dp)
                             .size(32.dp)
-                            .clip(RoundedCornerShape(50))
+                            .clip(buttonShape())
                             .clickable { vm.updateBannerHidden = true }
                             .padding(6.dp),
                     )

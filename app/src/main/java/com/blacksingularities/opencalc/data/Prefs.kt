@@ -12,6 +12,9 @@ data class HistoryItem(val expr: String, val result: String, val value: Double, 
 
 data class GraphFn(val expr: String, val color: Int, val visible: Boolean = true, val derivative: Boolean = false)
 
+/** Sposób pokazywania klawiszy naukowych: panel nad klawiaturą albo klawisze z gestem przesunięcia. */
+enum class KeyLayout(val label: String) { PANEL("Panel nad klawiaturą"), SWIPE("Przesuwane klawisze") }
+
 data class Settings(
     val angle: AngleMode = AngleMode.DEG,
     val style: NumberStyle = NumberStyle(),
@@ -19,6 +22,9 @@ data class Settings(
     val sciOpen: Boolean = true,
     val keepScreenOn: Boolean = false,
     val autoUpdate: Boolean = true,
+    /** Promień zaokrąglenia przycisków w dp; 0 = ostre rogi. */
+    val corner: Int = 6,
+    val keyLayout: KeyLayout = KeyLayout.PANEL,
 )
 
 /** Trwały stan aplikacji w SharedPreferences (JSON dla list). */
@@ -38,6 +44,8 @@ class Prefs(context: Context) {
             sciOpen = sp.getBoolean("sciOpen", true),
             keepScreenOn = sp.getBoolean("keepScreenOn", false),
             autoUpdate = sp.getBoolean("autoUpdate", true),
+            corner = sp.getInt("corner", 6).coerceIn(0, MAX_CORNER),
+            keyLayout = runCatching { KeyLayout.valueOf(sp.getString("keyLayout", "PANEL")!!) }.getOrDefault(KeyLayout.PANEL),
         )
         set(s) {
             sp.edit()
@@ -50,6 +58,8 @@ class Prefs(context: Context) {
                 .putBoolean("sciOpen", s.sciOpen)
                 .putBoolean("keepScreenOn", s.keepScreenOn)
                 .putBoolean("autoUpdate", s.autoUpdate)
+                .putInt("corner", s.corner)
+                .putString("keyLayout", s.keyLayout.name)
                 .apply()
         }
 
@@ -123,6 +133,7 @@ class Prefs(context: Context) {
         set(v) = sp.edit().putInt("tab", v).apply()
 
     companion object {
+        const val MAX_CORNER = 28
         val DEFAULT_GRAPHS = listOf(GraphFn("sin(x)", 0), GraphFn("x^2/4 − 1", 1))
     }
 }

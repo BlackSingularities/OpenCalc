@@ -351,10 +351,8 @@ fun HealthTool(vm: AppViewModel) {
 @Composable
 fun WordsTool(vm: AppViewModel) {
     var text by rememberSaveable { mutableStateOf("1234,56") }
-    var currency by rememberSaveable { mutableStateOf(true) }
     Section("Liczba") {
         NumField(text, { text = it }, "Kwota", Modifier.fillMaxWidth())
-        SwitchLine("Jako kwota w złotych", currency) { currency = it }
     }
     val v = parseNum(text) ?: return
     if (abs(v) >= 1e15) {
@@ -366,9 +364,9 @@ fun WordsTool(vm: AppViewModel) {
     val sign = if (v < 0) "minus " else ""
     val words = sign + PolishWords.say(whole)
     Section("Słownie") {
-        val result = if (currency) "$words ${PolishWords.plural(whole, "złoty", "złote", "złotych")} ${"%02d".format(grosze)}/100" else words
-        ResultRow("", result, strong = true)
-        if (currency && grosze > 0) ResultRow("Grosze słownie", PolishWords.say(grosze.toLong()) + " " + PolishWords.plural(grosze.toLong(), "grosz", "grosze", "groszy"))
+        // Kwota zawsze w złotych, a grosze zawsze również słownie – bez przełączników.
+        ResultRow("", "$words ${PolishWords.plural(whole, "złoty", "złote", "złotych")} ${"%02d".format(grosze)}/100", strong = true)
+        ResultRow("Grosze słownie", PolishWords.say(grosze.toLong()) + " " + PolishWords.plural(grosze.toLong(), "grosz", "grosze", "groszy"))
     }
 }
 

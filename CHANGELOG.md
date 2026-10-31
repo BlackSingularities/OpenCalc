@@ -1,5 +1,12 @@
 # Historia zmian
 
+## 1.1.0
+- Nowy tryb klawiszy naukowych: przesuwane klawisze wielofunkcyjne – dotknięcie wpisuje funkcję główną, przesunięcie w górę lub w dół funkcję z małego podpisu. Do wyboru w ustawieniach obok dotychczasowego panelu.
+- Zaokrąglenie przycisków ustawiane suwakiem, domyślnie prawie kwadratowe.
+- Dolny pasek: wybrana zakładka to biały kafel z czarną ikoną i podpisem.
+- Ładniejsze karty narzędzi: tytuł u góry, ikona w prawym górnym rogu.
+- Liczba słownie zawsze jako kwota w złotych, z groszami słownie.
+
 ## 1.0.3
 
 - Nowa profesjonalna ikona aplikacji i dopasowane kolorystycznie jasne tło.

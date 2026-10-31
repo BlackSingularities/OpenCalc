@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -75,6 +77,49 @@ val tools = listOf(
     Tool("text", "Liczba słownie", "Kwota słownie po polsku, np. na przelew", Icons.Rounded.TextFields) { WordsTool(it) },
 )
 
+/**
+ * Karta narzędzia: tytuł od samej góry, ikona w prawym górnym rogu, opis pod spodem.
+ * Rogi idą za ustawieniem zaokrąglenia, tylko o kilka dp łagodniej niż przyciski.
+ */
+@Composable
+private fun ToolCard(t: Tool, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(LocalCorner.current + 4.dp))
+            .background(Palette.Group)
+            .clickable(onClick = onClick)
+            .padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 14.dp),
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            Text(
+                t.title,
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                lineHeight = 19.sp,
+                minLines = 2,
+                maxLines = 2,
+                // Miejsce na ikonę w rogu, żeby długi tytuł jej nie nachodził.
+                modifier = Modifier.padding(end = 34.dp),
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(t.subtitle, color = Palette.TextDim, fontSize = 12.sp, lineHeight = 15.sp, minLines = 2, maxLines = 3)
+        }
+        Icon(
+            t.icon,
+            null,
+            tint = Color.White,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .size(28.dp)
+                .clip(buttonShape())
+                .background(Color.White.copy(alpha = 0.10f))
+                .padding(5.dp),
+        )
+    }
+}
+
 @Composable
 fun ToolsScreen(vm: AppViewModel) {
     var open by rememberSaveable { mutableStateOf<String?>(null) }
@@ -86,20 +131,7 @@ fun ToolsScreen(vm: AppViewModel) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(tools, key = { it.id }) { t ->
-                Column(
-                    Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Palette.Group)
-                        .clickable { open = t.id }
-                        .padding(14.dp),
-                ) {
-                    RowIcon(t.icon)
-                    Spacer(Modifier.size(10.dp))
-                    Text(t.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Text(t.subtitle, color = Palette.TextDim, fontSize = 12.sp, lineHeight = 15.sp, minLines = 2)
-                }
-            }
+            items(tools, key = { it.id }) { t -> ToolCard(t) { open = t.id } }
         }
     } else {
         BackHandler { open = null }

@@ -36,6 +36,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.blacksingularities.opencalc.ui.theme.Palette
 
+/** Kształt przycisków z ustawień – wspólny dla klawiatury, chipów i paska zakładek. */
+val LocalCorner = androidx.compose.runtime.staticCompositionLocalOf { 6.dp }
+
+@Composable
+fun buttonShape() = RoundedCornerShape(LocalCorner.current)
+
 fun copyText(context: Context, text: String) {
     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     cm.setPrimaryClip(ClipData.newPlainText("OpenCalc", text))
@@ -169,7 +175,7 @@ fun <T> ChipRow(items: List<T>, selected: T, label: (T) -> String, onSelect: (T)
                 fontSize = 13.sp,
                 fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(50))
+                    .clip(buttonShape())
                     .background(if (sel) Color.White else Color.White.copy(alpha = 0.07f))
                     .clickable { onSelect(item) }
                     .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -186,7 +192,7 @@ fun PillButton(text: String, modifier: Modifier = Modifier, primary: Boolean = t
         fontWeight = FontWeight.Bold,
         fontSize = 14.sp,
         modifier = modifier
-            .clip(RoundedCornerShape(50))
+            .clip(buttonShape())
             .background(if (primary) Color.White else Palette.KeyOp)
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),

@@ -22,8 +22,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.Handyman
@@ -65,7 +63,7 @@ private val tabs = listOf(
 
 @Composable
 fun AppRoot(vm: AppViewModel) {
-    CompositionLocalProvider(LocalVm provides vm) {
+    CompositionLocalProvider(LocalVm provides vm, LocalCorner provides vm.settings.corner.dp) {
         BackHandler(enabled = vm.tab != 0) { vm.selectTab(0) }
         Box(Modifier.fillMaxSize().background(Palette.Ink).windowInsetsPadding(WindowInsets.safeDrawing)) {
             Column(Modifier.fillMaxSize()) {
@@ -95,7 +93,7 @@ fun AppRoot(vm: AppViewModel) {
                 Snackbar(
                     containerColor = Palette.PanelHigh,
                     contentColor = Color.White,
-                    shape = RoundedCornerShape(50),
+                    shape = buttonShape(),
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 84.dp, start = 24.dp, end = 24.dp),
                 ) { Text(msg) }
             }
@@ -104,25 +102,30 @@ fun AppRoot(vm: AppViewModel) {
 }
 
 /**
- * Pasek zakładek bez tła i obramowania, przyklejony do dolnej krawędzi. Wybraną
- * zakładkę znaczy biały tekst z ikoną i kropka pod podpisem – bez pigułki, żeby
- * nic nie odcinało się od czarnego tła.
+ * Pasek zakładek przyklejony do dolnej krawędzi. Wybrana zakładka to biały,
+ * prawie kwadratowy kafel (promień z ustawień) z czarną ikoną i podpisem.
  */
 @Composable
 private fun TabBar(selected: Int, onSelect: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+    val shape = buttonShape()
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
         tabs.forEachIndexed { i, tab ->
             val sel = i == selected
-            val tint by animateColorAsState(if (sel) Color.White else Palette.TextDim, label = "tabTint")
+            val bg by animateColorAsState(if (sel) Color.White else Color.Transparent, label = "tabBg")
+            val tint by animateColorAsState(if (sel) Color.Black else Palette.TextDim, label = "tabTint")
             Column(
                 Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(18.dp))
+                    .clip(shape)
+                    .background(bg)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
-                        indication = ripple(bounded = false, radius = 36.dp),
+                        indication = ripple(),
                     ) { onSelect(i) }
-                    .padding(top = 8.dp, bottom = 6.dp),
+                    .padding(top = 7.dp, bottom = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Icon(tab.icon, null, tint = tint, modifier = Modifier.size(21.dp))
@@ -131,15 +134,9 @@ private fun TabBar(selected: Int, onSelect: (Int) -> Unit) {
                     tab.title,
                     color = tint,
                     fontSize = 10.sp,
-                    fontWeight = if (sel) FontWeight.SemiBold else FontWeight.Medium,
+                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 1,
-                )
-                Spacer(Modifier.height(4.dp))
-                Box(
-                    Modifier
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(if (sel) Color.White else Color.Transparent),
+                    softWrap = false,
                 )
             }
         }

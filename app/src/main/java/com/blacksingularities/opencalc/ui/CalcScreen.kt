@@ -10,6 +10,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -54,19 +56,26 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextLayoutResult
@@ -79,6 +88,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.blacksingularities.opencalc.data.HistoryItem
+import com.blacksingularities.opencalc.data.KeyLayout
 import com.blacksingularities.opencalc.engine.AngleMode
 import com.blacksingularities.opencalc.engine.Constants
 import com.blacksingularities.opencalc.engine.Fmt
@@ -91,11 +101,16 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 
-/** Klawisz: etykieta, tekst wstawiany (albo akcja), wygląd. */
+/** Dodatkowa funkcja klawisza wywoływana przesunięciem palca. */
+private data class Alt(val label: String, val action: () -> Unit)
+
+/** Klawisz: etykieta, tekst wstawiany (albo akcja), wygląd; [up]/[down] – funkcje pod gestem przesunięcia. */
 private data class Key(
     val label: String,
     val kind: KeyKind = KeyKind.NUM,
     val long: (() -> Unit)? = null,
+    val up: Alt? = null,
+    val down: Alt? = null,
     val action: () -> Unit,
 )
 
@@ -111,6 +126,7 @@ fun CalcScreen(vm: AppViewModel) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val landscape = maxWidth > maxHeight
         val sciOpen = vm.settings.sciOpen
+        val swipe = vm.settings.keyLayout == KeyLayout.SWIPE
         val dense = maxWidth < 380.dp
         // Paski narzędzi i odstępy są stałe, więc klawiatury dobieramy z tego, co naprawdę
         // zostaje na ekranie — inaczej przy otwartych funkcjach naukowych wyświetlacz
@@ -123,10 +139,10 @@ fun CalcScreen(vm: AppViewModel) {
                 Column(Modifier.weight(1.1f).fillMaxHeight()) {
                     Display(vm, Modifier.weight(1f).heightIn(min = 64.dp), scale = 0.8f)
                     Toolbar(vm, { showHistory = true }, { showFunctions = true }, { showStore = true }, ctx, compact = true, dense = dense)
-                    SciPad(vm, (keyH * 0.62f).coerceAtLeast(26.dp))
+                    if (swipe) SwipeSciPad(vm, (keyH * 0.9f).coerceAtLeast(34.dp)) else SciPad(vm, (keyH * 0.62f).coerceAtLeast(26.dp))
                 }
                 Column(Modifier.weight(0.9f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-                    BasicPad(vm, keyH)
+                    BasicPad(vm, keyH, swipe)
                 }
             }
         } else {
@@ -134,11 +150,15 @@ fun CalcScreen(vm: AppViewModel) {
             val displayMin = if (sciOpen) 104.dp else 148.dp
             // Wiersze: 5 podstawowych + 0,7 na backspace, a klawisze naukowe mają 0,62 wysokości
             // podstawowego klawisza w 5 wierszach; stałe to odstępy między wierszami.
-            val rowsFactor = if (sciOpen) 8.8f else 5.7f
-            val gaps = if (sciOpen) 60.dp else 40.dp
+            // W trybie przesuwanym zamiast pięciu niskich wierszy są dwa wyższe (0,72), bo każdy
+            // klawisz mieści trzy podpisy.
+            val sciRows = if (swipe) 2 else 5
+            val sciRatio = if (swipe) 0.72f else 0.62f
+            val rowsFactor = if (sciOpen) 5.7f + sciRows * sciRatio else 5.7f
+            val gaps = if (sciOpen) 40.dp + 6.dp * sciRows else 40.dp
             val basicH = ((avail - displayMin - gaps) / rowsFactor).coerceIn(40.dp, 88.dp)
-            val sciH = (basicH * 0.62f).coerceAtLeast(28.dp)
-            val padsH = basicH * 5.7f + gaps + (if (sciOpen) sciH * 5 else 0.dp)
+            val sciH = (basicH * sciRatio).coerceAtLeast(if (swipe) 40.dp else 28.dp)
+            val padsH = basicH * 5.7f + gaps + (if (sciOpen) sciH * sciRows else 0.dp)
             val displayH = (avail - padsH).coerceAtLeast(56.dp)
             // Na bardzo niskich ekranach nawet najmniejsze klawisze mogą nie zmieścić się
             // razem z wyświetlaczem – wtedy całość daje się przewinąć, nic nie jest ucięte.
@@ -150,9 +170,9 @@ fun CalcScreen(vm: AppViewModel) {
             ) {
                 Display(vm, Modifier.height(displayH), scale = (displayH / 160.dp).coerceIn(0.6f, 1f))
                 Toolbar(vm, { showHistory = true }, { showFunctions = true }, { showStore = true }, ctx, compact = false, dense = dense)
-                AnimatedVisibility(sciOpen) { SciPad(vm, sciH) }
+                AnimatedVisibility(sciOpen) { if (swipe) SwipeSciPad(vm, sciH) else SciPad(vm, sciH) }
                 Spacer(Modifier.height(6.dp))
-                BasicPad(vm, basicH)
+                BasicPad(vm, basicH, swipe)
                 Spacer(Modifier.height(4.dp))
             }
         }
@@ -291,7 +311,7 @@ private fun AltFormats(vm: AppViewModel, v: Double) {
         items.forEach { (label, text) ->
             Row(
                 Modifier
-                    .clip(RoundedCornerShape(50))
+                    .clip(buttonShape())
                     .background(Palette.PanelHigh)
                     .clickable {
                         copyText(ctx, text)
@@ -339,7 +359,7 @@ private fun Toolbar(vm: AppViewModel, onHistory: () -> Unit, onFunctions: () -> 
             fontWeight = FontWeight.Bold,
             fontSize = 12.sp,
             modifier = Modifier
-                .clip(RoundedCornerShape(50))
+                .clip(buttonShape())
                 .background(Color.White)
                 .clickable {
                     val next = AngleMode.entries[(s.angle.ordinal + 1) % AngleMode.entries.size]
@@ -390,7 +410,7 @@ private fun Toolbar(vm: AppViewModel, onHistory: () -> Unit, onFunctions: () -> 
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .weight(1f)
-                    .clip(RoundedCornerShape(50))
+                    .clip(buttonShape())
                     .clickable(onClick = action)
                     .padding(vertical = if (dense) 4.dp else 6.dp),
             )
@@ -468,19 +488,65 @@ private fun SciPad(vm: AppViewModel, keyH: Dp) {
     }
 }
 
+/**
+ * Klawisze naukowe „wielofunkcyjne”: dotknięcie wpisuje funkcję główną, przesunięcie
+ * w górę – podpis nad nią, w dół – podpis pod nią. Dwa wiersze zastępują pięć wierszy
+ * panelu, a przełączniki 2nd i hyp nie są potrzebne.
+ */
 @Composable
-private fun BasicPad(vm: AppViewModel, keyH: Dp) {
-    val dot = if (vm.settings.style.decimalComma) "," else "."
-    fun digit(d: String) = Key(d) { vm.insert(d) }
+private fun SwipeSciPad(vm: AppViewModel, keyH: Dp) {
+    fun fn(name: String): () -> Unit = { vm.insertFunction(name) }
+    fun ins(text: String): () -> Unit = { vm.insert(text) }
+    fun trig(b: String) = Key(b, KeyKind.FN, up = Alt("$b⁻¹", fn("a$b")), down = Alt("${b}h", fn("${b}h")), action = fn(b))
     val rows = listOf(
-        listOf(Key("AC", KeyKind.CLEAR) { vm.clear() }, Key("( )", KeyKind.OP) { vm.parenSmart() }, Key("%", KeyKind.OP) { vm.insert("%") }, Key("÷", KeyKind.OP) { vm.insert("÷") }),
-        listOf(digit("7"), digit("8"), digit("9"), Key("×", KeyKind.OP) { vm.insert("×") }),
-        listOf(digit("4"), digit("5"), digit("6"), Key("−", KeyKind.OP) { vm.insert("−") }),
-        listOf(digit("1"), digit("2"), digit("3"), Key("+", KeyKind.OP) { vm.insert("+") }),
         listOf(
-            Key("±", KeyKind.NUM) { vm.negate() },
-            digit("0"),
-            Key(dot) { vm.insert(".") },
+            trig("sin"), trig("cos"), trig("tan"),
+            Key("ln", KeyKind.FN, up = Alt("eˣ", ins("e^(")), down = Alt("log₂", fn("log2")), action = fn("ln")),
+            Key("log", KeyKind.FN, up = Alt("10ˣ", ins("10^(")), down = Alt("Ans", ins("Ans")), action = fn("log")),
+        ),
+        listOf(
+            Key("√", KeyKind.FN, up = Alt("∛", ins("∛(")), down = Alt("ʸ√x", fn("root")), action = ins("√(")),
+            Key("xʸ", KeyKind.FN, up = Alt("x²", ins("²")), down = Alt("x³", ins("³")), action = ins("^")),
+            Key("π", KeyKind.FN, up = Alt("e", ins("e")), down = Alt("φ", ins("φ")), action = ins("π")),
+            Key("x!", KeyKind.FN, up = Alt("nCr", fn("nCr")), down = Alt("nPr", fn("nPr")), action = ins("!")),
+            Key("1/x", KeyKind.FN, up = Alt("|x|", fn("abs")), down = Alt("mod", ins("mod")), action = ins("⁻¹")),
+        ),
+    )
+    // Przełączniki z panelu nie mogą zostać włączone po zmianie trybu.
+    LaunchedEffect(Unit) {
+        vm.second = false
+        vm.hyp = false
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        rows.forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                row.forEach { k -> KeyButton(vm, k, Modifier.weight(1f).height(keyH), fontSize = (keyH.value * 0.34f).coerceIn(13f, 18f).sp) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BasicPad(vm: AppViewModel, keyH: Dp, swipe: Boolean = false) {
+    val comma = vm.settings.style.decimalComma
+    val dot = if (comma) "," else "."
+    fun digit(d: String) = Key(d) { vm.insert(d) }
+    // W trybie przesuwanym operatory i kilka klawiszy dostają rzadziej używane funkcje.
+    fun Key.alt(up: Alt?, down: Alt? = null) = if (swipe) copy(up = up, down = down) else this
+    val rows = listOf(
+        listOf(
+            Key("AC", KeyKind.CLEAR) { vm.clear() },
+            Key("( )", KeyKind.OP) { vm.parenSmart() }.alt(Alt("(") { vm.insert("(") }, Alt(")") { vm.insert(")") }),
+            Key("%", KeyKind.OP) { vm.insert("%") }.alt(Alt("°") { vm.insert("°") }, Alt("rand") { vm.insert("rand()") }),
+            Key("÷", KeyKind.OP) { vm.insert("÷") }.alt(Alt("gcd") { vm.insertFunction("gcd") }, Alt("lcm") { vm.insertFunction("lcm") }),
+        ),
+        listOf(digit("7"), digit("8"), digit("9"), Key("×", KeyKind.OP) { vm.insert("×") }.alt(Alt("x²") { vm.insert("²") }, Alt("xʸ") { vm.insert("^") })),
+        listOf(digit("4"), digit("5"), digit("6"), Key("−", KeyKind.OP) { vm.insert("−") }.alt(Alt("√") { vm.insert("√(") }, Alt("|x|") { vm.insertFunction("abs") })),
+        listOf(digit("1"), digit("2"), digit("3"), Key("+", KeyKind.OP) { vm.insert("+") }.alt(Alt("π") { vm.insert("π") }, Alt("e") { vm.insert("e") })),
+        listOf(
+            Key("±", KeyKind.NUM) { vm.negate() }.alt(Alt("Ans") { vm.insert("Ans") }, Alt("M") { vm.memoryRecall() }),
+            digit("0").alt(Alt("EE") { vm.insert("E") }, Alt("000") { vm.insert("000") }),
+            Key(dot) { vm.insert(".") }.alt(Alt(if (comma) ";" else ",") { vm.insert(",") }),
             Key("=", KeyKind.EQ) { vm.equals() },
         ),
     )
@@ -508,9 +574,13 @@ private fun KeyButton(vm: AppViewModel, key: Key, modifier: Modifier, fontSize: 
         KeyKind.EQ -> Color.White to Color.Black
         KeyKind.CLEAR -> Palette.KeyOp to Palette.Error
     }
+    if (key.up != null || key.down != null) {
+        SwipeKey(vm, key, modifier, bg, fg, fontSize)
+        return
+    }
     Box(
         modifier
-            .clip(RoundedCornerShape(50))
+            .clip(buttonShape())
             .background(bg)
             .combinedClickable(
                 onClick = {
@@ -530,6 +600,117 @@ private fun KeyButton(vm: AppViewModel, key: Key, modifier: Modifier, fontSize: 
             Icon(Icons.AutoMirrored.Rounded.Backspace, "Usuń (przytrzymaj, by wyczyścić)", tint = fg, modifier = Modifier.size(24.dp))
         } else {
             Text(key.label, color = fg, fontSize = fontSize, fontWeight = if (key.kind == KeyKind.NUM) FontWeight.Normal else FontWeight.Medium, maxLines = 1)
+        }
+    }
+}
+
+/**
+ * Klawisz wielofunkcyjny: dotknięcie – funkcja główna, przesunięcie w górę/dół – funkcja
+ * z podpisu nad/pod nią. W trakcie gestu wybrana funkcja wskakuje na środek klawisza,
+ * a wibracja potwierdza przekroczenie progu; odjechanie palcem daleko w bok anuluje.
+ */
+@Composable
+private fun SwipeKey(vm: AppViewModel, key: Key, modifier: Modifier, bg: Color, fg: Color, fontSize: TextUnit) {
+    val haptic = LocalHapticFeedback.current
+    val current by rememberUpdatedState(key)
+    val haptics by rememberUpdatedState(vm.settings.haptics)
+    var pressed by remember { mutableStateOf(false) }
+    var dir by remember { mutableIntStateOf(0) }
+    val shownBg = when {
+        !pressed -> bg
+        key.kind == KeyKind.EQ -> Color(0xFFD0D0D0)
+        else -> Color.White.copy(alpha = 0.22f)
+    }
+    BoxWithConstraints(
+        modifier
+            .clip(buttonShape())
+            .background(shownBg)
+            .semantics {
+                contentDescription = listOfNotNull(key.label, key.up?.let { "w górę ${it.label}" }, key.down?.let { "w dół ${it.label}" }).joinToString(", ")
+            }
+            .pointerInput(Unit) {
+                val threshold = 14.dp.toPx()
+                awaitEachGesture {
+                    val first = awaitFirstDown()
+                    first.consume()
+                    pressed = true
+                    dir = 0
+                    var total = Offset.Zero
+                    var cancelled = false
+                    while (true) {
+                        val ch = awaitPointerEvent().changes.firstOrNull { it.id == first.id }
+                        if (ch == null) {
+                            cancelled = true
+                            break
+                        }
+                        if (!ch.pressed) {
+                            ch.consume()
+                            break
+                        }
+                        total += ch.positionChange()
+                        ch.consume()
+                        val k = current
+                        val vertical = abs(total.y) > abs(total.x) * 0.8f
+                        val next = when {
+                            vertical && total.y < -threshold && k.up != null -> -1
+                            vertical && total.y > threshold && k.down != null -> 1
+                            else -> 0
+                        }
+                        cancelled = next == 0 && abs(total.x) > size.width * 0.9f
+                        if (next != dir) {
+                            dir = next
+                            if (next != 0 && haptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                    }
+                    if (!cancelled) {
+                        val k = current
+                        if (haptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        when (dir) {
+                            -1 -> k.up?.action?.invoke()
+                            1 -> k.down?.action?.invoke()
+                            else -> k.action()
+                        }
+                    }
+                    pressed = false
+                    dir = 0
+                }
+            },
+    ) {
+        val small = (maxHeight.value * 0.19f).coerceIn(9f, 12f).sp
+        val faint = if (key.kind == KeyKind.EQ) Color.Black.copy(alpha = 0.45f) else Palette.TextFaint
+        val main = when (dir) {
+            -1 -> key.up?.label
+            1 -> key.down?.label
+            else -> null
+        } ?: key.label
+        key.up?.let {
+            Text(
+                it.label,
+                color = faint,
+                fontSize = small,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 3.dp).alpha(if (dir == -1) 0f else 1f),
+            )
+        }
+        Text(
+            main,
+            color = fg,
+            fontSize = if (dir != 0) fontSize * 1.08f else fontSize,
+            fontWeight = if (dir != 0) FontWeight.Bold else if (key.kind == KeyKind.NUM) FontWeight.Normal else FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.align(Alignment.Center),
+        )
+        key.down?.let {
+            Text(
+                it.label,
+                color = faint,
+                fontSize = small,
+                maxLines = 1,
+                softWrap = false,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 3.dp).alpha(if (dir == 1) 0f else 1f),
+            )
         }
     }
 }

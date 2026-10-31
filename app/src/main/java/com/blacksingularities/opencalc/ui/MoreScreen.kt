@@ -33,6 +33,8 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.blacksingularities.opencalc.data.KeyLayout
+import com.blacksingularities.opencalc.data.Prefs
 import com.blacksingularities.opencalc.engine.AngleMode
 import com.blacksingularities.opencalc.engine.Fmt
 import com.blacksingularities.opencalc.engine.NumMode
@@ -76,7 +78,29 @@ fun MoreScreen(vm: AppViewModel) {
             }
             SettingSwitch(Icons.Rounded.Vibration, "Wibracje klawiszy", null, s.haptics) { vm.updateSettings(s.copy(haptics = it)) }
             SettingSwitch(Icons.Rounded.LightMode, "Ekran zawsze włączony", "Gdy aplikacja jest otwarta", s.keepScreenOn) { vm.updateSettings(s.copy(keepScreenOn = it)) }
-            SettingSwitch(Icons.Rounded.DarkMode, "Panel funkcji naukowych", "Widoczny nad klawiaturą w pionie", s.sciOpen) { vm.updateSettings(s.copy(sciOpen = it)) }
+        }
+        Section("Klawiatura") {
+            Text("Klawisze naukowe i specjalne", color = Palette.TextDim, fontSize = 13.sp)
+            ChipRow(KeyLayout.entries, s.keyLayout, { it.label }, { vm.updateSettings(s.copy(keyLayout = it)) })
+            Hint(
+                when (s.keyLayout) {
+                    KeyLayout.PANEL -> "Pełny panel funkcji nad cyframi, z przełącznikami 2nd i hyp."
+                    KeyLayout.SWIPE -> "Każdy klawisz ma dodatkowe funkcje: przesuń palcem w górę lub w dół, by wpisać tę wypisaną małą czcionką. Działa też na operatorach i cyfrach."
+                },
+            )
+            SettingSwitch(Icons.Rounded.DarkMode, "Pokazuj klawisze naukowe", "W pionie, nad klawiaturą podstawową", s.sciOpen) { vm.updateSettings(s.copy(sciOpen = it)) }
+            Text("Zaokrąglenie przycisków: ${if (s.corner == 0) "ostre rogi" else "${s.corner} dp"}", color = Palette.TextDim, fontSize = 13.sp)
+            Slider(
+                value = s.corner.toFloat(),
+                onValueChange = { vm.updateSettings(s.copy(corner = it.toInt())) },
+                valueRange = 0f..Prefs.MAX_CORNER.toFloat(),
+                steps = Prefs.MAX_CORNER - 1,
+                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White, inactiveTrackColor = Palette.Line),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PillButton("Przykład") {}
+                PillButton("Przycisk", primary = false) {}
+            }
         }
         Section("Aktualizacje") {
             SettingSwitch(Icons.Rounded.SystemUpdate, "Sprawdzaj automatycznie", "Co kilka godzin, przy otwarciu aplikacji", s.autoUpdate) { vm.updateSettings(s.copy(autoUpdate = it)) }

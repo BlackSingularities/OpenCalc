@@ -269,7 +269,7 @@ fun GraphScreen(vm: AppViewModel) {
             if (graphs.size < 8) {
                 Row(
                     Modifier
-                        .clip(RoundedCornerShape(50))
+                        .clip(buttonShape())
                         .background(Palette.Group)
                         .clickable {
                             val used = graphs.map { it.color }.toSet()
@@ -342,7 +342,7 @@ private fun FunctionRow(i: Int, g: GraphFn, error: String?, onChange: (GraphFn) 
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.sp,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(50))
+                    .clip(buttonShape())
                     .background(if (g.derivative) Color.White else Color.Transparent)
                     .clickable { onChange(g.copy(derivative = !g.derivative)) }
                     .padding(horizontal = 10.dp, vertical = 4.dp),
