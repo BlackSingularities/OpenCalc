@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Email
 import androidx.compose.material.icons.rounded.Coffee
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Language
@@ -129,6 +130,7 @@ fun MoreScreen(vm: AppViewModel) {
                 lineHeight = 18.sp,
             )
             ActionLine(Icons.Rounded.Language, "redzikowski.com", "Inne aplikacje autora") { uri.openUri(AUTHOR_URL) }
+            ActionLine(Icons.Rounded.Email, "kontakt@redzikowski.com", "Napisz do autora") { uri.openUri("mailto:kontakt@redzikowski.com") }
             ActionLine(Icons.Rounded.Coffee, "Postaw kawę", "Wesprzyj rozwój na buycoffee.to") { uri.openUri(COFFEE_URL) }
         }
         Row(Modifier.fillMaxWidth().padding(bottom = 20.dp), horizontalArrangement = Arrangement.Center) {
