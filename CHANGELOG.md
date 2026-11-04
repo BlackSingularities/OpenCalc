@@ -1,5 +1,9 @@
 # Historia zmian
 
+## 1.1.1
+
+- Komunikat o nowej wersji bez listy zmian, linków i informacji, skąd pobierana jest aktualizacja.
+
 ## 1.1.0
 - Nowy tryb klawiszy naukowych: przesuwane klawisze wielofunkcyjne – dotknięcie wpisuje funkcję główną, przesunięcie w górę lub w dół funkcję z małego podpisu. Do wyboru w ustawieniach obok dotychczasowego panelu.
 - Zaokrąglenie przycisków ustawiane suwakiem, domyślnie prawie kwadratowe.
