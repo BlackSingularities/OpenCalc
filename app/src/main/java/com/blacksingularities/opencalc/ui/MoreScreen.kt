@@ -1,5 +1,7 @@
 package com.blacksingularities.opencalc.ui
 
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,7 +25,6 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,7 +42,9 @@ import com.blacksingularities.opencalc.engine.Fmt
 import com.blacksingularities.opencalc.engine.NumMode
 import com.blacksingularities.opencalc.update.UpdateManager
 import com.blacksingularities.opencalc.update.UpdateState
+import com.blacksingularities.opencalc.i18n.I18n
 import com.blacksingularities.opencalc.ui.theme.Palette
+import com.blacksingularities.opencalc.ui.theme.ThemeMode
 
 const val AUTHOR = "Adam Rędzikowski"
 const val AUTHOR_URL = "https://redzikowski.com"
@@ -52,7 +55,7 @@ fun MoreScreen(vm: AppViewModel) {
     val s = vm.settings
     val uri = LocalUriHandler.current
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp),
+        Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 760.dp).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Section("Obliczenia") {
@@ -66,11 +69,23 @@ fun MoreScreen(vm: AppViewModel) {
                 onValueChange = { vm.updateSettings(s.copy(style = s.style.copy(digits = it.toInt()))) },
                 valueRange = 4f..15f,
                 steps = 10,
-                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White, inactiveTrackColor = Palette.Line),
+                colors = SliderDefaults.colors(thumbColor = Palette.Fg, activeTrackColor = Palette.Fg, inactiveTrackColor = Palette.Line),
             )
             Hint("Przykład: " + Fmt.number(Math.PI * 1_000_000, s.style) + " · " + Fmt.number(1.0 / 7, s.style))
         }
         Section("Wygląd i obsługa") {
+            Text("Motyw", color = Palette.TextDim, fontSize = 13.sp)
+            ChipRow(
+                ThemeMode.entries, s.theme,
+                { mapOf(ThemeMode.SYSTEM to "Jak w systemie", ThemeMode.DARK to "Ciemny", ThemeMode.LIGHT to "Jasny").getValue(it) },
+                { vm.updateSettings(s.copy(theme = it)) },
+            )
+            Text("Język", color = Palette.TextDim, fontSize = 13.sp)
+            ChipRow(
+                listOf(I18n.AUTO) + I18n.languages.map { it.code }, s.language,
+                { code -> if (code == I18n.AUTO) "Jak w systemie" else I18n.languages.first { it.code == code }.name },
+                { vm.updateSettings(s.copy(language = it)) },
+            )
             SettingSwitch(Icons.Rounded.Numbers, "Przecinek dziesiętny", "1,5 zamiast 1.5; argumenty funkcji oddziela średnik", s.style.decimalComma) {
                 vm.updateSettings(s.copy(style = s.style.copy(decimalComma = it)))
             }
@@ -96,7 +111,7 @@ fun MoreScreen(vm: AppViewModel) {
                 onValueChange = { vm.updateSettings(s.copy(corner = it.toInt())) },
                 valueRange = 0f..Prefs.MAX_CORNER.toFloat(),
                 steps = Prefs.MAX_CORNER - 1,
-                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White, inactiveTrackColor = Palette.Line),
+                colors = SliderDefaults.colors(thumbColor = Palette.Fg, activeTrackColor = Palette.Fg, inactiveTrackColor = Palette.Line),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PillButton("Przykład") {}
@@ -122,7 +137,7 @@ fun MoreScreen(vm: AppViewModel) {
             }
         }
         Section("O aplikacji") {
-            Text("OpenCalc ${UpdateManager.currentVersion}", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text("OpenCalc ${UpdateManager.currentVersion}", color = Palette.Fg, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             Text(
                 "Kalkulator naukowy z wykresami, przelicznikami jednostek i kilkunastoma narzędziami. Bez reklam, śledzenia i konta – wszystko liczy się w telefonie.",
                 color = Palette.TextDim,
@@ -144,14 +159,14 @@ private fun SettingSwitch(icon: ImageVector, title: String, subtitle: String?, v
     Row(Modifier.fillMaxWidth().clickable { onChange(!value) }, verticalAlignment = Alignment.CenterVertically) {
         RowIcon(icon)
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text(title, fontSize = 14.sp, color = Color.White)
+            Text(title, fontSize = 14.sp, color = Palette.Fg)
             if (subtitle != null) Text(subtitle, fontSize = 11.sp, color = Palette.TextDim, lineHeight = 14.sp)
         }
         Switch(
             checked = value,
             onCheckedChange = onChange,
             modifier = Modifier.scale(0.82f),
-            colors = SwitchDefaults.colors(checkedTrackColor = Color.White, checkedThumbColor = Color.Black),
+            colors = SwitchDefaults.colors(checkedTrackColor = Palette.Fg, checkedThumbColor = Palette.Bg),
         )
     }
 }
@@ -161,7 +176,7 @@ private fun ActionLine(icon: ImageVector, title: String, subtitle: String, onCli
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         RowIcon(icon)
         Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-            Text(title, fontSize = 14.sp, color = Color.White)
+            Text(title, fontSize = 14.sp, color = Palette.Fg)
             Text(subtitle, fontSize = 11.sp, color = Palette.TextDim)
         }
     }

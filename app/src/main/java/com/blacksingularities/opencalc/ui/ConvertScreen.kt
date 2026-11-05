@@ -1,5 +1,10 @@
 package com.blacksingularities.opencalc.ui
 
+import androidx.compose.runtime.LaunchedEffect
+import com.blacksingularities.opencalc.i18n.tr
+import com.blacksingularities.opencalc.data.Rates
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,7 +41,11 @@ import com.blacksingularities.opencalc.ui.theme.Palette
 @Composable
 fun ConvertScreen(vm: AppViewModel) {
     var catId by rememberSaveable { mutableStateOf(vm.prefs.convertCategory) }
-    val cat = Units.categories.firstOrNull { it.id == catId } ?: Units.categories.first()
+    // Waluty na początku – to najczęściej używany przelicznik.
+    val categories = listOf(Rates.category(vm.rates)) + Units.categories
+    val cat = categories.firstOrNull { it.id == catId } ?: categories.first()
+    val isCurrency = cat.id == Rates.CATEGORY_ID
+    LaunchedEffect(isCurrency) { if (isCurrency) vm.refreshRates() }
     var fromId by rememberSaveable(cat.id) { mutableStateOf(cat.units.first { it.factor == 1.0 && it.toBase == null }.id) }
     var input by rememberSaveable { mutableStateOf("1") }
     val from = cat.units.firstOrNull { it.id == fromId } ?: cat.units.first()
@@ -46,15 +54,16 @@ fun ConvertScreen(vm: AppViewModel) {
     val ctx = LocalContext.current
     val style = vm.settings.style.copy(digits = 10)
 
-    Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
-        ChipRow(Units.categories, cat, { it.name }, {
+    Column(Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 760.dp).padding(horizontal = 12.dp)) {
+        ChipRow(categories, cat, { it.name }, {
             catId = it.id
             vm.prefs.convertCategory = it.id
         }, Modifier.padding(vertical = 8.dp))
         Section(cat.name) {
             NumField(input, { input = it }, "Wartość", Modifier.fillMaxWidth(), suffix = from.symbol, keyboard = androidx.compose.ui.text.input.KeyboardType.Text)
             if (value == null && input.isNotBlank()) ErrorText("Niepoprawna liczba lub wyrażenie")
-            Hint("${from.name} · dotknij jednostki poniżej, by przeliczać z niej; przytrzymaj, by skopiować wynik")
+            Hint(tr("{} · dotknij jednostki poniżej, by przeliczać z niej; dotknij wyniku, by go skopiować", tr(from.name)))
+            if (isCurrency) CurrencyStatus(vm)
         }
         LazyColumn(Modifier.fillMaxWidth().weight(1f).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             items(cat.units, key = { it.id }) { u ->
@@ -65,7 +74,7 @@ fun ConvertScreen(vm: AppViewModel) {
                     Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(if (selected) Color.White else Palette.Group)
+                        .background(if (selected) Palette.Fg else Palette.Group)
                         .clickable {
                             if (result != null) input = com.blacksingularities.opencalc.engine.Fmt.plain(result)
                             fromId = u.id
@@ -74,12 +83,12 @@ fun ConvertScreen(vm: AppViewModel) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(u.name, color = if (selected) Color.Black else Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        Text(u.symbol, color = if (selected) Color.Black.copy(alpha = 0.6f) else Palette.TextFaint, fontSize = 12.sp)
+                        Text(u.name, color = if (selected) Palette.Bg else Palette.Fg, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text(u.symbol, color = if (selected) Palette.Bg.copy(alpha = 0.6f) else Palette.TextFaint, fontSize = 12.sp)
                     }
                     Text(
                         text,
-                        color = if (selected) Color.Black else Color.White,
+                        color = if (selected) Palette.Bg else Palette.Fg,
                         fontSize = 17.sp,
                         fontFamily = FontFamily.Monospace,
                         modifier = Modifier.clickable {
@@ -91,4 +100,24 @@ fun ConvertScreen(vm: AppViewModel) {
             }
         }
     }
+}
+
+/** Data tabeli NBP, odświeżanie i błąd pobierania. */
+@Composable
+private fun CurrencyStatus(vm: AppViewModel) {
+    val table = vm.rates
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            when {
+                vm.ratesLoading -> "Pobieranie kursów NBP…"
+                table == null -> "Brak kursów – połącz się z internetem"
+                else -> tr("Kursy średnie NBP z dnia {}", table.date)
+            },
+            color = Palette.TextDim,
+            fontSize = 12.sp,
+            modifier = Modifier.weight(1f),
+        )
+        PillButton("Odśwież", primary = false) { vm.refreshRates(force = true) }
+    }
+    vm.ratesError?.let { ErrorText(it) }
 }

@@ -1,6 +1,7 @@
 package com.blacksingularities.opencalc
 
 import com.blacksingularities.opencalc.engine.Analysis
+import com.blacksingularities.opencalc.engine.Calc
 import com.blacksingularities.opencalc.engine.AngleMode
 import com.blacksingularities.opencalc.engine.CalcException
 import com.blacksingularities.opencalc.engine.EvalContext
@@ -14,6 +15,8 @@ import com.blacksingularities.opencalc.engine.Stats
 import com.blacksingularities.opencalc.engine.Units
 import com.blacksingularities.opencalc.engine.convert
 import com.blacksingularities.opencalc.engine.evaluate
+import com.blacksingularities.opencalc.i18n.I18n
+import com.blacksingularities.opencalc.i18n.tr
 import com.blacksingularities.opencalc.ui.PolishWords
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -114,5 +117,36 @@ class EngineTest {
         assertEquals(212.0, convert(100.0, temp.units[0], temp.units[1]), 1e-9)
         assertEquals("dwa tysiące dwadzieścia sześć", PolishWords.say(2026))
         assertEquals("milion pięćset tysięcy", PolishWords.say(1_500_000))
+    }
+
+    @Test
+    fun exactDecimal() {
+        val s = NumberStyle(digits = 15)
+        fun shown(e: String) = Calc.compute(e, EvalContext()).shown(s)
+        assertEquals("0,3", shown("0.1+0.2"))
+        assertEquals("1", shown("1/3*3"))
+        assertEquals("2432902008176640000", Calc.compute("20!", EvalContext()).exact!!.toPlainString())
+        assertEquals("220", shown("200+10%"))
+    }
+
+    @Test
+    fun complexNumbers() {
+        val s = NumberStyle()
+        fun shown(e: String) = Calc.compute(e, EvalContext()).shown(s)
+        assertEquals("−1", shown("i^2"))
+        assertEquals("2i", shown("sqrt(-4)+0i"))
+        assertEquals("3 + 4i", shown("(1+2i)^2+6"))
+        assertEquals("5", shown("abs(3+4i)"))
+        assertEquals("1 − i", shown("conj(1+i)"))
+    }
+
+    @Test
+    fun englishDictionaryTemplates() {
+        I18n.setting = "en"
+        assertEquals("Memory: 12", tr("Pamięć: 12"))
+        assertEquals("Unknown name “qq”", tr("Nieznana nazwa „qq”"))
+        assertEquals("Copied: 5", tr("Skopiowano: {}", "5"))
+        I18n.setting = "pl"
+        assertEquals("Pamięć: 12", tr("Pamięć: 12"))
     }
 }

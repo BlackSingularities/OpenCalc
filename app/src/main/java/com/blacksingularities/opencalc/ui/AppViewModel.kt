@@ -1,5 +1,6 @@
 package com.blacksingularities.opencalc.ui
 
+import com.blacksingularities.opencalc.data.Rates
 import android.app.Application
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -10,11 +11,14 @@ import com.blacksingularities.opencalc.data.GraphFn
 import com.blacksingularities.opencalc.data.HistoryItem
 import com.blacksingularities.opencalc.data.Prefs
 import com.blacksingularities.opencalc.data.Settings
+import com.blacksingularities.opencalc.engine.Calc
 import com.blacksingularities.opencalc.engine.CalcException
+import com.blacksingularities.opencalc.engine.Complex
+import com.blacksingularities.opencalc.engine.Computed
 import com.blacksingularities.opencalc.engine.EvalContext
 import com.blacksingularities.opencalc.engine.Fmt
 import com.blacksingularities.opencalc.engine.Functions
-import com.blacksingularities.opencalc.engine.Parser
+import com.blacksingularities.opencalc.i18n.I18n
 import com.blacksingularities.opencalc.update.UpdateManager
 import com.blacksingularities.opencalc.update.UpdateState
 import com.blacksingularities.opencalc.update.isNewer
@@ -42,6 +46,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var lastValue by mutableStateOf<Double?>(null)
         private set
+    /** Wynik ostatniego „=” w postaci do wyświetlenia (dokładny lub zespolony). */
+    var lastShown by mutableStateOf<String?>(null)
+        private set
+    var lastComplex by mutableStateOf<Complex?>(null)
+        private set
     var evaluated by mutableStateOf(false)
         private set
     var second by mutableStateOf(false)
@@ -63,12 +72,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     init {
+        I18n.setting = settings.language
         refreshPreview()
     }
 
     fun updateSettings(s: Settings) {
         settings = s
         prefs.settings = s
+        I18n.setting = s.language
         refreshPreview()
     }
 
@@ -86,9 +97,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun evalText(text: String): Double {
-        val c = context()
-        return Parser.parse(text, c.vars.keys).eval(c)
+        val r = Calc.compute(text, context())
+        if (r.isComplex) throw CalcException("Wynik zespolony")
+        return r.value
     }
+
+    fun compute(text: String): Computed = Calc.compute(text, context())
 
     fun format(v: Double) = Fmt.number(v, settings.style)
 
@@ -106,10 +120,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun refreshPreview() {
         val t = expr
         preview = if (t.isBlank() || evaluated) null else try {
-            val v = evalText(t)
-            val f = format(v)
+            val r = compute(t)
+            val f = r.shown(settings.style)
             // Sama liczba nie potrzebuje podglądu.
-            if (Fmt.displayExpr(t, settings.style.decimalComma) == f || t == plainOf(v)) null else f
+            if (Fmt.displayExpr(t, settings.style.decimalComma) == f || t == r.plain().replace('-', '−')) null else f
         } catch (_: Exception) {
             null
         }
@@ -175,6 +189,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         evaluated = false
         lastExpr = null
         lastValue = null
+        lastShown = null
+        lastComplex = null
         setExpr("", 0)
     }
 
@@ -217,17 +233,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (expr.isBlank()) return
         if (evaluated) return
         try {
-            val v = evalText(expr)
+            val r = compute(expr)
+            val v = r.value
             if (v.isNaN()) throw CalcException("Wynik nieokreślony")
-            val shown = format(v)
-            val item = HistoryItem(expr, shown, v, System.currentTimeMillis())
+            val shown = r.shown(settings.style)
+            val item = HistoryItem(expr, shown, if (r.isComplex) Double.NaN else v, System.currentTimeMillis())
             history = (listOf(item) + history.filterNot { it.expr == expr && !it.pinned }).take(300)
             prefs.history = history
-            ans = v
-            prefs.ans = v
+            if (!r.isComplex) {
+                ans = v
+                prefs.ans = v
+            }
             lastExpr = expr
-            lastValue = v
-            val plain = plainOf(v)
+            lastValue = if (r.isComplex) null else v
+            lastShown = shown
+            lastComplex = r.complex
+            val plain = r.plain().replace('-', '−')
             expr = plain
             cursor = plain.length
             prefs.expression = plain
@@ -242,7 +263,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // ——— Pamięć i zmienne ———
-    private fun currentValue(): Double? = lastValue.takeIf { evaluated } ?: runCatching { evalText(expr) }.getOrNull()
+    private fun currentValue(): Double? = if (evaluated) lastValue else runCatching { evalText(expr) }.getOrNull()
 
     fun memoryAdd(sign: Int) {
         val v = currentValue() ?: run { message = "Brak wartości do zapamiętania"; return }
@@ -299,6 +320,31 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun updateGraphs(list: List<GraphFn>) {
         graphs = list
         prefs.graphs = list
+    }
+
+    // ——— Kursy walut ———
+    var rates by mutableStateOf(Rates.cached(app))
+        private set
+    var ratesLoading by mutableStateOf(false)
+        private set
+    var ratesError by mutableStateOf<String?>(null)
+        private set
+
+    /** Pobiera tabelę NBP, gdy nie ma żadnej albo ma ponad 6 godzin (albo na żądanie). */
+    fun refreshRates(force: Boolean = false) {
+        val r = rates
+        if (ratesLoading || (!force && r != null && System.currentTimeMillis() - r.fetchedAt < 6 * 3_600_000L)) return
+        ratesLoading = true
+        ratesError = null
+        viewModelScope.launch {
+            try {
+                rates = Rates.fetch(ctx)
+            } catch (e: Exception) {
+                ratesError = "Nie udało się pobrać kursów"
+            } finally {
+                ratesLoading = false
+            }
+        }
     }
 
     // ——— Aktualizacje ———

@@ -8,7 +8,10 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.LaunchedEffect
+import com.blacksingularities.opencalc.i18n.I18n
+import com.blacksingularities.opencalc.ui.theme.ThemeMode
 import com.blacksingularities.opencalc.ui.AppRoot
 import com.blacksingularities.opencalc.ui.AppViewModel
 import com.blacksingularities.opencalc.ui.theme.OpenCalcTheme
@@ -19,14 +22,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-        )
+        applyBars(dark = true)
         window.isNavigationBarContrastEnforced = false
         UpdateManager.clearUpdatedNotification(this)
         setContent {
-            OpenCalcTheme {
+            val dark = when (vm.settings.theme) {
+                ThemeMode.SYSTEM -> isSystemInDarkTheme()
+                ThemeMode.DARK -> true
+                ThemeMode.LIGHT -> false
+            }
+            LaunchedEffect(dark) { applyBars(dark) }
+            I18n.setting = vm.settings.language
+            OpenCalcTheme(dark) {
                 val keepOn = vm.settings.keepScreenOn
                 LaunchedEffect(keepOn) {
                     if (keepOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -35,6 +42,13 @@ class MainActivity : ComponentActivity() {
                 AppRoot(vm)
             }
         }
+    }
+
+    /** Paski systemowe przezroczyste, z ikonami w kolorze pasującym do motywu. */
+    private fun applyBars(dark: Boolean) {
+        val style = if (dark) SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+        enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+        window.isNavigationBarContrastEnforced = false
     }
 
     override fun onResume() {

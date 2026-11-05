@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widżet kalkulatora: wyświetlacz (dotknięcie otwiera aplikację) i 5 rzędów klawiszy. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <LinearLayout
+        android:id="@+id/w_display"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1.3"
+        android:gravity="bottom|end"
+        android:orientation="vertical"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <TextView
+            android:id="@+id/w_expr"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:maxLines="1"
+            android:ellipsize="start"
+            android:textColor="@color/widget_dim"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/w_result"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:maxLines="1"
+            android:ellipsize="start"
+            android:text="0"
+            android:textColor="@color/widget_fg"
+            android:textSize="30sp" />
+    </LinearLayout>
+
+
+    <LinearLayout style="@style/WidgetRow">
+        <TextView android:id="@+id/k_clear" style="@style/WidgetKey.Clear" android:text="C" />
+        <TextView android:id="@+id/k_paren" style="@style/WidgetKey.Op" android:text="( )" />
+        <TextView android:id="@+id/k_back" style="@style/WidgetKey.Op" android:text="⌫" />
+        <TextView android:id="@+id/k_div" style="@style/WidgetKey.Op" android:text="÷" />
+    </LinearLayout>
+
+    <LinearLayout style="@style/WidgetRow">
+        <TextView android:id="@+id/k_7" style="@style/WidgetKey" android:text="7" />
+        <TextView android:id="@+id/k_8" style="@style/WidgetKey" android:text="8" />
+        <TextView android:id="@+id/k_9" style="@style/WidgetKey" android:text="9" />
+        <TextView android:id="@+id/k_mul" style="@style/WidgetKey.Op" android:text="×" />
+    </LinearLayout>
+
+    <LinearLayout style="@style/WidgetRow">
+        <TextView android:id="@+id/k_4" style="@style/WidgetKey" android:text="4" />
+        <TextView android:id="@+id/k_5" style="@style/WidgetKey" android:text="5" />
+        <TextView android:id="@+id/k_6" style="@style/WidgetKey" android:text="6" />
+        <TextView android:id="@+id/k_sub" style="@style/WidgetKey.Op" android:text="−" />
+    </LinearLayout>
+
+    <LinearLayout style="@style/WidgetRow">
+        <TextView android:id="@+id/k_1" style="@style/WidgetKey" android:text="1" />
+        <TextView android:id="@+id/k_2" style="@style/WidgetKey" android:text="2" />
+        <TextView android:id="@+id/k_3" style="@style/WidgetKey" android:text="3" />
+        <TextView android:id="@+id/k_add" style="@style/WidgetKey.Op" android:text="+" />
+    </LinearLayout>
+
+    <LinearLayout style="@style/WidgetRow">
+        <TextView android:id="@+id/k_pct" style="@style/WidgetKey.Op" android:text="%" />
+        <TextView android:id="@+id/k_0" style="@style/WidgetKey" android:text="0" />
+        <TextView android:id="@+id/k_dot" style="@style/WidgetKey" android:text="," />
+        <TextView android:id="@+id/k_eq" style="@style/WidgetKey.Eq" android:text="=" />
+    </LinearLayout>
+</LinearLayout>

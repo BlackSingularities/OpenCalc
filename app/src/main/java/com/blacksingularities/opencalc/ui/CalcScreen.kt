@@ -1,5 +1,6 @@
 package com.blacksingularities.opencalc.ui
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -49,10 +50,8 @@ import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -74,7 +73,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -95,6 +99,8 @@ import com.blacksingularities.opencalc.engine.Fmt
 import com.blacksingularities.opencalc.engine.Fraction
 import com.blacksingularities.opencalc.engine.Functions
 import com.blacksingularities.opencalc.engine.NumMode
+import com.blacksingularities.opencalc.i18n.I18n
+import com.blacksingularities.opencalc.i18n.tr
 import com.blacksingularities.opencalc.ui.theme.Palette
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -132,7 +138,29 @@ fun CalcScreen(vm: AppViewModel) {
         // zostaje na ekranie — inaczej przy otwartych funkcjach naukowych wyświetlacz
         // schodzi do zera i nie widać ani wyrażenia, ani górnej krawędzi cyfr.
         val toolbarH = if (dense) 74.dp else 82.dp
-        if (landscape) {
+        if (landscape && maxHeight >= 480.dp) {
+            // Tablet poziomo: wyświetlacz na całą szerokość u góry, pod nim pasek narzędzi,
+            // a na dole funkcje naukowe i klawiatura podstawowa obok siebie, równej wysokości.
+            val avail = maxHeight - 16.dp - toolbarH
+            val keyH = ((avail - 140.dp - 40.dp) / 5.7f).coerceIn(44.dp, 92.dp)
+            val padH = keyH * 5.7f + 40.dp
+            val sciRows = if (swipe) 2 else 5
+            val sciGap = if (swipe) 6.dp else 5.dp
+            val sciH = ((padH - sciGap * (sciRows - 1)) / sciRows).coerceAtMost(if (swipe) keyH * 1.3f else keyH)
+            Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Display(vm, Modifier.weight(1f).heightIn(min = 72.dp), scale = 1f)
+                Toolbar(vm, { showHistory = true }, { showFunctions = true }, { showStore = true }, ctx, compact = true, dense = dense)
+                Spacer(Modifier.height(4.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Bottom) {
+                    Column(Modifier.weight(1.2f)) {
+                        if (swipe) SwipeSciPad(vm, sciH) else SciPad(vm, sciH)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        BasicPad(vm, keyH, swipe)
+                    }
+                }
+            }
+        } else if (landscape) {
             val avail = maxHeight - 16.dp - toolbarH
             val keyH = ((avail - 72.dp - 20.dp) / 8.8f).coerceIn(32.dp, 64.dp)
             Row(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -162,8 +190,11 @@ fun CalcScreen(vm: AppViewModel) {
             val displayH = (avail - padsH).coerceAtLeast(56.dp)
             // Na bardzo niskich ekranach nawet najmniejsze klawisze mogą nie zmieścić się
             // razem z wyświetlaczem – wtedy całość daje się przewinąć, nic nie jest ucięte.
+            // Tablet w pionie: klawiatura nie rozciąga się na całą szerokość ekranu.
             Column(
                 Modifier
+                    .align(Alignment.TopCenter)
+                    .widthIn(max = 640.dp)
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 12.dp),
@@ -202,7 +233,8 @@ private fun Display(vm: AppViewModel, modifier: Modifier, scale: Float = 1f) {
                 modifier = Modifier.clickable { vm.setExpression(vm.lastExpr!!) },
             )
         }
-        val shownLength = if (vm.evaluated && vm.lastValue != null) vm.format(vm.lastValue!!).length else shown.length
+        val result = vm.lastShown.takeIf { vm.evaluated }
+        val shownLength = result?.length ?: shown.length
         val size: TextUnit = when {
             shownLength < 10 -> 46.sp
             shownLength < 14 -> 38.sp
@@ -216,15 +248,15 @@ private fun Display(vm: AppViewModel, modifier: Modifier, scale: Float = 1f) {
             Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState(), reverseScrolling = true),
             contentAlignment = Alignment.BottomEnd,
         ) {
-            if (vm.evaluated && vm.lastValue != null) {
+            if (result != null) {
                 Text(
-                    vm.format(vm.lastValue!!),
-                    color = Color.White,
+                    result,
+                    color = Palette.Fg,
                     fontSize = size,
                     fontWeight = FontWeight.Light,
                     textAlign = TextAlign.End,
                     lineHeight = size * 1.32f,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
                 )
             } else {
                 ExpressionText(vm, shown.ifEmpty { "" }, size)
@@ -234,7 +266,7 @@ private fun Display(vm: AppViewModel, modifier: Modifier, scale: Float = 1f) {
         Box(Modifier.fillMaxWidth().heightIn(min = 32.dp * scale), contentAlignment = Alignment.CenterEnd) {
             when {
                 err != null -> Text(err, color = Palette.Error, fontSize = 17.sp * scale, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                vm.preview != null -> Text("= " + vm.preview, color = Palette.TextDim, fontSize = 23.sp * scale, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                vm.preview != null -> Text("= " + vm.preview!!, color = Palette.TextDim, fontSize = 23.sp * scale, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 vm.evaluated && vm.lastValue != null -> AltFormats(vm, vm.lastValue!!)
             }
         }
@@ -253,7 +285,7 @@ private fun ExpressionText(vm: AppViewModel, shown: String, size: TextUnit) {
     )
     Text(
         shown.ifEmpty { "0" },
-        color = if (shown.isEmpty()) Palette.TextFaint else Color.White,
+        color = if (shown.isEmpty()) Palette.TextFaint else Palette.Fg,
         fontSize = size,
         fontWeight = FontWeight.Light,
         textAlign = TextAlign.End,
@@ -274,7 +306,7 @@ private fun ExpressionText(vm: AppViewModel, shown: String, size: TextUnit) {
                 val rect = l.getCursorRect(i)
                 val x = if (shown.isEmpty()) size.toPx() * 0.6f + rect.left else rect.left
                 drawLine(
-                    Color.White.copy(alpha = blink),
+                    Palette.Fg.copy(alpha = blink),
                     Offset(if (shown.isEmpty()) this.size.width - 2.dp.toPx() - (this.size.width - x).coerceAtLeast(0f) * 0f else x, rect.top + 4.dp.toPx()),
                     Offset(if (shown.isEmpty()) this.size.width - 2.dp.toPx() else x, rect.bottom - 4.dp.toPx()),
                     strokeWidth = 2.dp.toPx(),
@@ -320,7 +352,7 @@ private fun AltFormats(vm: AppViewModel, v: Double) {
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             ) {
                 Text("$label ", color = Palette.TextFaint, fontSize = 12.sp)
-                Text(text, color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
+                Text(text, color = Palette.Fg, fontSize = 12.sp, fontFamily = FontFamily.Monospace, maxLines = 1)
             }
         }
     }
@@ -355,12 +387,12 @@ private fun Toolbar(vm: AppViewModel, onHistory: () -> Unit, onFunctions: () -> 
                 AngleMode.RAD -> "RAD"
                 AngleMode.GRAD -> "GRAD"
             },
-            color = Color.Black,
+            color = Palette.Bg,
             fontWeight = FontWeight.Bold,
             fontSize = 12.sp,
             modifier = Modifier
                 .clip(buttonShape())
-                .background(Color.White)
+                .background(Palette.Fg)
                 .clickable {
                     val next = AngleMode.entries[(s.angle.ordinal + 1) % AngleMode.entries.size]
                     vm.updateSettings(s.copy(angle = next))
@@ -368,13 +400,13 @@ private fun Toolbar(vm: AppViewModel, onHistory: () -> Unit, onFunctions: () -> 
                 .padding(horizontal = 12.dp, vertical = 6.dp),
         )
         if (vm.memory != 0.0) {
-            Text("M", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.padding(start = 10.dp))
+            Text("M", color = Palette.Fg, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.padding(start = 10.dp))
         }
         Spacer(Modifier.weight(1f))
         ToolIcon(Icons.Rounded.History, "Historia", iconSize, onHistory)
         ToolIcon(Icons.Rounded.Functions, "Funkcje i stałe", iconSize, onFunctions)
         ToolIcon(Icons.Rounded.ContentCopy, "Kopiuj wynik", iconSize) {
-            val text = vm.lastValue?.takeIf { vm.evaluated }?.let { vm.format(it) } ?: vm.preview ?: Fmt.displayExpr(vm.expr, s.style.decimalComma)
+            val text = vm.lastShown?.takeIf { vm.evaluated } ?: vm.preview ?: Fmt.displayExpr(vm.expr, s.style.decimalComma)
             copyText(ctx, text.replace(" ", ""))
             vm.message = "Skopiowano: $text"
         }
@@ -467,7 +499,7 @@ private fun SciPad(vm: AppViewModel, keyH: Dp) {
         listOf(
             Key(if (s) "τ" else "π", KeyKind.FN, action = after { vm.insert(if (s) "τ" else "π") }),
             Key(if (s) "φ" else "e", KeyKind.FN, action = after { vm.insert(if (s) "φ" else "e") }),
-            Key("|x|", KeyKind.FN) { vm.insertFunction("abs") },
+            Key(if (s) "i" else "|x|", KeyKind.FN, action = after { if (s) vm.insert("i") else vm.insertFunction("abs") }),
             Key("mod", KeyKind.FN) { vm.insert("mod") },
             Key("EE", KeyKind.FN) { vm.insert("E") },
         ),
@@ -482,7 +514,7 @@ private fun SciPad(vm: AppViewModel, keyH: Dp) {
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         rows.forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                row.forEach { k -> KeyButton(vm, k, Modifier.weight(1f).height(keyH), fontSize = (keyH.value * 0.38f).coerceIn(11f, 15f).sp) }
+                row.forEach { k -> KeyButton(vm, k, Modifier.weight(1f).height(keyH), fontSize = (keyH.value * 0.38f).coerceIn(11f, 20f).sp) }
             }
         }
     }
@@ -502,7 +534,7 @@ private fun SwipeSciPad(vm: AppViewModel, keyH: Dp) {
         listOf(
             trig("sin"), trig("cos"), trig("tan"),
             Key("ln", KeyKind.FN, up = Alt("eˣ", ins("e^(")), down = Alt("log₂", fn("log2")), action = fn("ln")),
-            Key("log", KeyKind.FN, up = Alt("10ˣ", ins("10^(")), down = Alt("Ans", ins("Ans")), action = fn("log")),
+            Key("log", KeyKind.FN, up = Alt("10ˣ", ins("10^(")), down = Alt("i", ins("i")), action = fn("log")),
         ),
         listOf(
             Key("√", KeyKind.FN, up = Alt("∛", ins("∛(")), down = Alt("ʸ√x", fn("root")), action = ins("√(")),
@@ -520,7 +552,7 @@ private fun SwipeSciPad(vm: AppViewModel, keyH: Dp) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         rows.forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                row.forEach { k -> KeyButton(vm, k, Modifier.weight(1f).height(keyH), fontSize = (keyH.value * 0.34f).coerceIn(13f, 18f).sp) }
+                row.forEach { k -> KeyButton(vm, k, Modifier.weight(1f).height(keyH), fontSize = (keyH.value * 0.34f).coerceIn(13f, 22f).sp) }
             }
         }
     }
@@ -568,10 +600,10 @@ private fun BasicPad(vm: AppViewModel, keyH: Dp, swipe: Boolean = false) {
 private fun KeyButton(vm: AppViewModel, key: Key, modifier: Modifier, fontSize: TextUnit, icon: Boolean = false) {
     val haptic = LocalHapticFeedback.current
     val (bg, fg) = when (key.kind) {
-        KeyKind.NUM -> Palette.Key to Color.White
-        KeyKind.FN -> Palette.KeyFn to Color.White
-        KeyKind.OP -> Palette.KeyOp to Color.White
-        KeyKind.EQ -> Color.White to Color.Black
+        KeyKind.NUM -> Palette.Key to Palette.Fg
+        KeyKind.FN -> Palette.KeyFn to Palette.Fg
+        KeyKind.OP -> Palette.KeyOp to Palette.Fg
+        KeyKind.EQ -> Palette.Fg to Palette.Bg
         KeyKind.CLEAR -> Palette.KeyOp to Palette.Error
     }
     if (key.up != null || key.down != null) {
@@ -582,6 +614,10 @@ private fun KeyButton(vm: AppViewModel, key: Key, modifier: Modifier, fontSize: 
         modifier
             .clip(buttonShape())
             .background(bg)
+            .semantics {
+                role = Role.Button
+                contentDescription = if (icon) tr("Usuń (przytrzymaj, by wyczyścić)") else spoken(key.label)
+            }
             .combinedClickable(
                 onClick = {
                     if (vm.settings.haptics) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
@@ -599,10 +635,27 @@ private fun KeyButton(vm: AppViewModel, key: Key, modifier: Modifier, fontSize: 
         if (icon) {
             Icon(Icons.AutoMirrored.Rounded.Backspace, "Usuń (przytrzymaj, by wyczyścić)", tint = fg, modifier = Modifier.size(24.dp))
         } else {
-            Text(key.label, color = fg, fontSize = fontSize, fontWeight = if (key.kind == KeyKind.NUM) FontWeight.Normal else FontWeight.Medium, maxLines = 1)
+            Text(key.label, color = fg, fontSize = fontSize, fontWeight = if (key.kind == KeyKind.NUM) FontWeight.Normal else FontWeight.Medium, maxLines = 1, modifier = Modifier.clearAndSetSemantics {})
         }
     }
 }
+
+/** Nazwy klawiszy dla czytnika ekranu (TalkBack) – symbol „÷” czytany jest jako „podzielić”. */
+private val SPOKEN = mapOf(
+    "AC" to "Wyczyść wszystko", "( )" to "Nawias", "(" to "Nawias otwierający", ")" to "Nawias zamykający",
+    "%" to "Procent", "÷" to "Podzielić", "×" to "Razy", "−" to "Minus", "+" to "Plus", "=" to "Równa się",
+    "±" to "Zmień znak", "," to "Przecinek", "." to "Kropka", ";" to "Średnik", "⌫" to "Usuń",
+    "2nd" to "Druga funkcja", "2nd ●" to "Druga funkcja, włączona", "hyp" to "Funkcje hiperboliczne", "hyp ●" to "Funkcje hiperboliczne, włączone",
+    "Ans" to "Ostatni wynik", "M" to "Pamięć", "x²" to "Kwadrat", "x³" to "Sześcian", "xʸ" to "Potęga", "ʸ√x" to "Pierwiastek n-tego stopnia",
+    "√" to "Pierwiastek kwadratowy", "∛" to "Pierwiastek sześcienny", "1/x" to "Odwrotność", "x!" to "Silnia",
+    "π" to "Pi", "e" to "Liczba e", "τ" to "Tau", "φ" to "Złota proporcja", "|x|" to "Wartość bezwzględna",
+    "mod" to "Reszta z dzielenia", "EE" to "Razy dziesięć do potęgi", "°" to "Stopnie", "i" to "Jednostka urojona",
+    "eˣ" to "e do potęgi", "10ˣ" to "10 do potęgi", "ln" to "Logarytm naturalny", "log" to "Logarytm dziesiętny",
+    "log₂" to "Logarytm o podstawie 2", "nCr" to "Kombinacje", "nPr" to "Wariacje", "rand" to "Liczba losowa",
+    "gcd" to "Największy wspólny dzielnik", "lcm" to "Najmniejsza wspólna wielokrotność", "000" to "Trzy zera",
+)
+
+private fun spoken(label: String) = SPOKEN[label]?.let { tr(it) } ?: label
 
 /**
  * Klawisz wielofunkcyjny: dotknięcie – funkcja główna, przesunięcie w górę/dół – funkcja
@@ -618,15 +671,16 @@ private fun SwipeKey(vm: AppViewModel, key: Key, modifier: Modifier, bg: Color, 
     var dir by remember { mutableIntStateOf(0) }
     val shownBg = when {
         !pressed -> bg
-        key.kind == KeyKind.EQ -> Color(0xFFD0D0D0)
-        else -> Color.White.copy(alpha = 0.22f)
+        key.kind == KeyKind.EQ -> Palette.Fg.copy(alpha = 0.8f)
+        else -> Palette.Fg.copy(alpha = 0.22f)
     }
     BoxWithConstraints(
         modifier
             .clip(buttonShape())
             .background(shownBg)
             .semantics {
-                contentDescription = listOfNotNull(key.label, key.up?.let { "w górę ${it.label}" }, key.down?.let { "w dół ${it.label}" }).joinToString(", ")
+                role = Role.Button
+                contentDescription = listOfNotNull(spoken(key.label), key.up?.let { tr("w górę {}", spoken(it.label)) }, key.down?.let { tr("w dół {}", spoken(it.label)) }).joinToString(", ")
             }
             .pointerInput(Unit) {
                 val threshold = 14.dp.toPx()
@@ -677,7 +731,7 @@ private fun SwipeKey(vm: AppViewModel, key: Key, modifier: Modifier, bg: Color, 
             },
     ) {
         val small = (maxHeight.value * 0.19f).coerceIn(9f, 12f).sp
-        val faint = if (key.kind == KeyKind.EQ) Color.Black.copy(alpha = 0.45f) else Palette.TextFaint
+        val faint = if (key.kind == KeyKind.EQ) Palette.Bg.copy(alpha = 0.45f) else Palette.TextFaint
         val main = when (dir) {
             -1 -> key.up?.label
             1 -> key.down?.label
@@ -690,7 +744,7 @@ private fun SwipeKey(vm: AppViewModel, key: Key, modifier: Modifier, bg: Color, 
                 fontSize = small,
                 maxLines = 1,
                 softWrap = false,
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 3.dp).alpha(if (dir == -1) 0f else 1f),
+                modifier = Modifier.clearAndSetSemantics {}.align(Alignment.TopCenter).padding(top = 3.dp).alpha(if (dir == -1) 0f else 1f),
             )
         }
         Text(
@@ -700,7 +754,7 @@ private fun SwipeKey(vm: AppViewModel, key: Key, modifier: Modifier, bg: Color, 
             fontWeight = if (dir != 0) FontWeight.Bold else if (key.kind == KeyKind.NUM) FontWeight.Normal else FontWeight.Medium,
             maxLines = 1,
             softWrap = false,
-            modifier = Modifier.align(Alignment.Center),
+            modifier = Modifier.clearAndSetSemantics {}.align(Alignment.Center),
         )
         key.down?.let {
             Text(
@@ -709,7 +763,7 @@ private fun SwipeKey(vm: AppViewModel, key: Key, modifier: Modifier, bg: Color, 
                 fontSize = small,
                 maxLines = 1,
                 softWrap = false,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 3.dp).alpha(if (dir == 1) 0f else 1f),
+                modifier = Modifier.clearAndSetSemantics {}.align(Alignment.BottomCenter).padding(bottom = 3.dp).alpha(if (dir == 1) 0f else 1f),
             )
         }
     }
@@ -719,11 +773,11 @@ private fun SwipeKey(vm: AppViewModel, key: Key, modifier: Modifier, bg: Color, 
 @Composable
 private fun HistorySheet(vm: AppViewModel, onClose: () -> Unit) {
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val fmt = remember { SimpleDateFormat("d MMM, HH:mm", Locale.forLanguageTag("pl")) }
+    val fmt = remember { SimpleDateFormat("d MMM, HH:mm", I18n.locale) }
     var confirmClear by remember { mutableStateOf(false) }
     ModalBottomSheet(onDismissRequest = onClose, sheetState = state, containerColor = Palette.PanelHigh) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Historia", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            Text("Historia", color = Palette.Fg, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             if (vm.history.any { !it.pinned }) TextButton(onClick = { confirmClear = true }) { Text("Wyczyść", color = Palette.Error) }
         }
         Hint("    Dotknij działania, by je przywrócić, a wyniku – by wstawić liczbę. Przypięte wpisy nie znikają przy czyszczeniu.")
@@ -763,7 +817,7 @@ private fun HistoryRow(vm: AppViewModel, item: HistoryItem, time: String, onClos
             )
             Text(
                 "= " + item.result,
-                color = Color.White,
+                color = Palette.Fg,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { vm.useHistory(item, true); onClose() }.padding(8.dp, 2.dp),
@@ -771,7 +825,7 @@ private fun HistoryRow(vm: AppViewModel, item: HistoryItem, time: String, onClos
             Text(time, color = Palette.TextFaint, fontSize = 11.sp, modifier = Modifier.padding(start = 8.dp))
         }
         IconButton(onClick = { vm.togglePin(item) }) {
-            Icon(if (item.pinned) Icons.Rounded.PushPin else Icons.Outlined.PushPin, "Przypnij", tint = if (item.pinned) Color.White else Palette.TextFaint)
+            Icon(if (item.pinned) Icons.Rounded.PushPin else Icons.Outlined.PushPin, "Przypnij", tint = if (item.pinned) Palette.Fg else Palette.TextFaint)
         }
         IconButton(onClick = { vm.deleteHistory(item) }) {
             Icon(Icons.Rounded.Delete, "Usuń", tint = Palette.TextFaint)
@@ -825,7 +879,7 @@ private fun FunctionsDialog(vm: AppViewModel, onClose: () -> Unit) {
                     }
                     item {
                         Spacer(Modifier.height(8.dp))
-                        Hint("Składnia: mnożenie domyślne (2π, 3(x+1)), potęgi x², x^y, silnia n!, procenty 200+10%, notacja 1,5E−3, stopnie 30°, |x| i mod. Brakujące nawiasy zamykające są dopisywane automatycznie.")
+                        Hint("Składnia: mnożenie domyślne (2π, 3(x+1)), potęgi x², x^y, silnia n!, procenty 200+10%, notacja 1,5E−3, stopnie 30°, |x| i mod, liczby zespolone 3+4i. Brakujące nawiasy zamykające są dopisywane automatycznie.")
                     }
                 }
             }
@@ -836,7 +890,7 @@ private fun FunctionsDialog(vm: AppViewModel, onClose: () -> Unit) {
 
 @Composable
 private fun GroupLabel(text: String) {
-    Text(text.uppercase(), color = Palette.TextFaint, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
+    Text(tr(text).uppercase(), color = Palette.TextFaint, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp, bottom = 4.dp))
 }
 
 @Composable
@@ -848,7 +902,7 @@ private fun FnRow(name: String, desc: String, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
-        Text(name, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 15.sp)
+        Text(name, color = Palette.Fg, fontFamily = FontFamily.Monospace, fontSize = 15.sp)
         Text(desc, color = Palette.TextDim, fontSize = 12.sp)
     }
 }
@@ -873,7 +927,7 @@ private fun StoreDialog(vm: AppViewModel, onClose: () -> Unit) {
                             .padding(horizontal = 14.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(name, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.width(32.dp))
+                        Text(name, color = Palette.Fg, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.width(32.dp))
                         Text(current?.let { vm.format(it) } ?: "pusta", color = if (current == null) Palette.TextFaint else Palette.TextDim, fontFamily = FontFamily.Monospace)
                     }
                 }

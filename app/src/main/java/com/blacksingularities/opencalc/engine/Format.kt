@@ -32,9 +32,13 @@ object Fmt {
     fun number(v: Double, style: NumberStyle = NumberStyle()): String {
         if (v.isNaN()) return "Nie liczba"
         if (v.isInfinite()) return if (v > 0) "∞" else "−∞"
-        if (v == 0.0) return "0"
-        val a = abs(v)
-        val exp = floor(log10(a)).toInt()
+        return number(BigDecimal(v), style)
+    }
+
+    /** Ta sama reguła dla wyniku dokładnego (BigDecimal) – bez błędów zapisu binarnego. */
+    fun number(v: BigDecimal, style: NumberStyle = NumberStyle()): String {
+        if (v.signum() == 0) return "0"
+        val exp = v.precision() - v.scale() - 1
         val mode = when {
             style.mode != NumMode.AUTO -> style.mode
             exp >= 15 || exp < -9 -> NumMode.SCI
@@ -47,19 +51,17 @@ object Fmt {
         }
     }
 
-    private fun fixed(v: Double, style: NumberStyle): String {
-        val bd = BigDecimal(v).round(MathContext(style.digits, RoundingMode.HALF_EVEN)).stripTrailingZeros()
-        val plain = bd.toPlainString()
-        return decorate(plain, style)
+    private fun fixed(v: BigDecimal, style: NumberStyle): String {
+        val bd = v.round(MathContext(style.digits, RoundingMode.HALF_EVEN)).stripTrailingZeros()
+        return decorate(bd.toPlainString(), style)
     }
 
-    private fun scientific(v: Double, style: NumberStyle, engineering: Boolean): String {
-        var bd = BigDecimal(v).round(MathContext(style.digits, RoundingMode.HALF_EVEN))
+    private fun scientific(v: BigDecimal, style: NumberStyle, engineering: Boolean): String {
+        val bd = v.round(MathContext(style.digits, RoundingMode.HALF_EVEN))
         var exp = bd.precision() - bd.scale() - 1
         if (engineering) exp = Math.floorDiv(exp, 3) * 3
         val mant = bd.movePointLeft(exp).stripTrailingZeros()
-        bd = mant
-        val m = decorate(bd.toPlainString(), style.copy(grouping = false))
+        val m = decorate(mant.toPlainString(), style.copy(grouping = false))
         return if (exp == 0) m else "$m×10${superscript(exp)}"
     }
 
@@ -84,6 +86,14 @@ object Fmt {
         return if (a >= 1e15 || a < 1e-9) bd.toString().replace("E+", "E") else bd.toPlainString()
     }
 
+    /** Wynik dokładny do wstawienia w wyrażenie: 15 cyfr znaczących, bez spacji. */
+    fun plain(v: BigDecimal): String {
+        if (v.signum() == 0) return "0"
+        val bd = v.round(MathContext(15, RoundingMode.HALF_EVEN)).stripTrailingZeros()
+        val exp = bd.precision() - bd.scale() - 1
+        return if (exp >= 15 || exp < -9) bd.toString().replace("E+", "E") else bd.toPlainString()
+    }
+
     /** Krótka liczba do etykiet i narzędzi (np. 2 miejsca dla kwot). */
     fun short(v: Double, decimals: Int, style: NumberStyle = NumberStyle()): String {
         if (v.isNaN() || v.isInfinite()) return number(v, style)
@@ -91,7 +101,7 @@ object Fmt {
         return decorate(bd.toPlainString(), style)
     }
 
-    fun money(v: Double, style: NumberStyle = NumberStyle()) = short(v, 2, style) + " zł"
+    fun money(v: Double, style: NumberStyle = NumberStyle(), currency: String = "zł") = short(v, 2, style) + " " + currency
 
     /** Wyrażenie wpisane w kalkulatorze w zapisie wybranym przez użytkownika (przecinek dziesiętny). */
     fun displayExpr(expr: String, decimalComma: Boolean): String =

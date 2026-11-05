@@ -3,7 +3,6 @@ package com.blacksingularities.opencalc.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -310,7 +309,7 @@ private fun MatrixView(vm: AppViewModel, m: Matrix) {
             for (c in 0 until m.cols) {
                 val v = m[r, c]
                 val frac = Fraction.of(v, 1000)?.takeIf { it.den > 1 }?.toString()
-                Text(frac ?: Fmt.number(v, style), color = androidx.compose.ui.graphics.Color.White, fontFamily = FontFamily.Monospace, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                Text(frac ?: Fmt.number(v, style), color = Palette.Fg, fontFamily = FontFamily.Monospace, fontSize = 15.sp, modifier = Modifier.weight(1f))
             }
         }
     }

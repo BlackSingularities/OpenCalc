@@ -5,12 +5,29 @@ import android.content.SharedPreferences
 import com.blacksingularities.opencalc.engine.AngleMode
 import com.blacksingularities.opencalc.engine.NumMode
 import com.blacksingularities.opencalc.engine.NumberStyle
+import com.blacksingularities.opencalc.ui.theme.ThemeMode
 import org.json.JSONArray
 import org.json.JSONObject
 
 data class HistoryItem(val expr: String, val result: String, val value: Double, val time: Long, val pinned: Boolean = false)
 
-data class GraphFn(val expr: String, val color: Int, val visible: Boolean = true, val derivative: Boolean = false)
+/** Rodzaj wykresu: y = f(x), krzywa parametryczna (x(t), y(t)), biegunowa r(θ) albo nierówność. */
+enum class GraphKind { FUNCTION, PARAMETRIC, POLAR, INEQUALITY }
+
+/**
+ * Wykres: [expr] to f(x), x(t), r(θ) albo nierówność (np. „y > x²”); [expr2] to y(t) krzywej
+ * parametrycznej; [t0]–[t1] to zakres parametru t lub kąta θ (wyrażenia, domyślnie 0–2π).
+ */
+data class GraphFn(
+    val expr: String,
+    val color: Int,
+    val visible: Boolean = true,
+    val derivative: Boolean = false,
+    val kind: GraphKind = GraphKind.FUNCTION,
+    val expr2: String = "",
+    val t0: String = "0",
+    val t1: String = "2π",
+)
 
 /** Sposób pokazywania klawiszy naukowych: panel nad klawiaturą albo klawisze z gestem przesunięcia. */
 enum class KeyLayout(val label: String) { PANEL("Panel nad klawiaturą"), SWIPE("Przesuwane klawisze") }
@@ -25,6 +42,9 @@ data class Settings(
     /** Promień zaokrąglenia przycisków w dp; 0 = ostre rogi. */
     val corner: Int = 6,
     val keyLayout: KeyLayout = KeyLayout.PANEL,
+    val theme: ThemeMode = ThemeMode.SYSTEM,
+    /** Kod języka interfejsu albo „auto” – język systemu. */
+    val language: String = "auto",
 )
 
 /** Trwały stan aplikacji w SharedPreferences (JSON dla list). */
@@ -46,6 +66,8 @@ class Prefs(context: Context) {
             autoUpdate = sp.getBoolean("autoUpdate", true),
             corner = sp.getInt("corner", 6).coerceIn(0, MAX_CORNER),
             keyLayout = runCatching { KeyLayout.valueOf(sp.getString("keyLayout", "PANEL")!!) }.getOrDefault(KeyLayout.PANEL),
+            theme = runCatching { ThemeMode.valueOf(sp.getString("theme", "SYSTEM")!!) }.getOrDefault(ThemeMode.SYSTEM),
+            language = sp.getString("language", "auto") ?: "auto",
         )
         set(s) {
             sp.edit()
@@ -60,6 +82,8 @@ class Prefs(context: Context) {
                 .putBoolean("autoUpdate", s.autoUpdate)
                 .putInt("corner", s.corner)
                 .putString("keyLayout", s.keyLayout.name)
+                .putString("theme", s.theme.name)
+                .putString("language", s.language)
                 .apply()
         }
 
@@ -87,12 +111,21 @@ class Prefs(context: Context) {
             val a = JSONArray(sp.getString("graphs", null) ?: return@runCatching DEFAULT_GRAPHS)
             List(a.length()) { i ->
                 val o = a.getJSONObject(i)
-                GraphFn(o.getString("e"), o.getInt("c"), o.optBoolean("v", true), o.optBoolean("d"))
+                GraphFn(
+                    o.getString("e"), o.getInt("c"), o.optBoolean("v", true), o.optBoolean("d"),
+                    runCatching { GraphKind.valueOf(o.optString("k", "FUNCTION")) }.getOrDefault(GraphKind.FUNCTION),
+                    o.optString("e2", ""), o.optString("t0", "0"), o.optString("t1", "2π"),
+                )
             }
         }.getOrDefault(DEFAULT_GRAPHS)
         set(list) {
             val a = JSONArray()
-            list.forEach { a.put(JSONObject().put("e", it.expr).put("c", it.color).put("v", it.visible).put("d", it.derivative)) }
+            list.forEach {
+                a.put(
+                    JSONObject().put("e", it.expr).put("c", it.color).put("v", it.visible).put("d", it.derivative)
+                        .put("k", it.kind.name).put("e2", it.expr2).put("t0", it.t0).put("t1", it.t1),
+                )
+            }
             sp.edit().putString("graphs", a.toString()).apply()
         }
 

@@ -1,5 +1,8 @@
 package com.blacksingularities.opencalc.engine
 
+import java.math.BigDecimal
+import java.math.MathContext
+import java.math.RoundingMode
 import kotlin.math.PI
 import kotlin.math.E
 import kotlin.math.abs
@@ -51,28 +54,62 @@ class EvalContext(
     fun with(name: String, value: Double) = EvalContext(angle, vars + (name to value))
 }
 
-/** Węzeł drzewa wyrażenia – parsowanie raz, liczenie wiele razy (wykresy). */
+/** Precyzja dokładnej arytmetyki dziesiętnej (34 cyfry, jak decimal128). */
+val EXACT: MathContext = MathContext.DECIMAL128
+
+/**
+ * Węzeł drzewa wyrażenia – parsowanie raz, liczenie wiele razy (wykresy).
+ * [eval] liczy na liczbach zmiennoprzecinkowych, [exact] dokładnie w systemie dziesiętnym
+ * (null, gdy działanie nie ma dokładnego wyniku, np. sin albo π), a [cx] na liczbach zespolonych.
+ */
 sealed interface Node {
     fun eval(c: EvalContext): Double
+    fun exact(c: EvalContext): BigDecimal? = null
+    fun cx(c: EvalContext): Complex = Complex(eval(c))
 
-    data class Num(val v: Double) : Node {
+    data class Num(val v: Double, val text: String? = null) : Node {
         override fun eval(c: EvalContext) = v
+        override fun exact(c: EvalContext) = text?.let { BigDecimal(it) }
+        override fun cx(c: EvalContext) = Complex(v)
     }
 
     data class Var(val name: String) : Node {
         override fun eval(c: EvalContext) = c.vars[name] ?: throw CalcException("Nieznana zmienna $name")
+        override fun exact(c: EvalContext): BigDecimal? = eval(c).takeIf { !it.isNaN() && !it.isInfinite() }?.let { BigDecimal.valueOf(it) }
+    }
+
+    /** Jednostka urojona i. W zwykłych obliczeniach i na wykresach jest błędem dziedziny. */
+    object Imag : Node {
+        override fun eval(c: EvalContext): Double = throw CalcException("Wynik zespolony")
+        override fun cx(c: EvalContext) = Complex.I
     }
 
     data class Neg(val a: Node) : Node {
         override fun eval(c: EvalContext) = -a.eval(c)
+        override fun exact(c: EvalContext) = a.exact(c)?.negate()
+        override fun cx(c: EvalContext) = -a.cx(c)
     }
 
     data class Percent(val a: Node) : Node {
         override fun eval(c: EvalContext) = a.eval(c) / 100.0
+        override fun exact(c: EvalContext) = a.exact(c)?.movePointLeft(2)
+        override fun cx(c: EvalContext) = a.cx(c) * 0.01
     }
 
     data class Fact(val a: Node) : Node {
         override fun eval(c: EvalContext) = factorial(a.eval(c))
+        override fun exact(c: EvalContext): BigDecimal? {
+            val n = a.exact(c) ?: return null
+            if (n.signum() < 0 || n.stripTrailingZeros().scale() > 0 || n > BigDecimal(5000)) return null
+            var r = java.math.BigInteger.ONE
+            for (i in 2..n.toInt()) r = r.multiply(java.math.BigInteger.valueOf(i.toLong()))
+            return BigDecimal(r)
+        }
+        override fun cx(c: EvalContext): Complex {
+            val z = a.cx(c)
+            if (!z.isReal) throw CalcException("Silnia liczby zespolonej")
+            return Complex(factorial(z.re))
+        }
     }
 
     data class Bin(val op: Char, val a: Node, val b: Node) : Node {
@@ -94,11 +131,129 @@ sealed interface Node {
                 else -> throw CalcException("Nieznany operator")
             }
         }
+
+        override fun exact(c: EvalContext): BigDecimal? {
+            val x = a.exact(c) ?: return null
+            if ((op == '+' || op == '-') && b is Percent) {
+                val p = x.multiply(b.exact(c) ?: return null, EXACT)
+                return if (op == '+') x.add(p, EXACT) else x.subtract(p, EXACT)
+            }
+            val y = b.exact(c) ?: return null
+            return when (op) {
+                '+' -> x.add(y, EXACT)
+                '-' -> x.subtract(y, EXACT)
+                '*' -> x.multiply(y, EXACT)
+                '/' -> if (y.signum() == 0) throw CalcException("Dzielenie przez zero") else x.divide(y, EXACT)
+                '^' -> exactPower(x, y)
+                'm' -> if (y.signum() == 0) throw CalcException("Dzielenie przez zero") else
+                    x.subtract(y.multiply(x.divide(y, 0, RoundingMode.FLOOR)))
+                else -> null
+            }
+        }
+
+        override fun cx(c: EvalContext): Complex {
+            val x = a.cx(c)
+            if ((op == '+' || op == '-') && b is Percent) {
+                val p = x * b.cx(c)
+                return if (op == '+') x + p else x - p
+            }
+            val y = b.cx(c)
+            return when (op) {
+                '+' -> x + y
+                '-' -> x - y
+                '*' -> x * y
+                '/' -> x / y
+                '^' -> if (x.isReal && y.isReal && (x.re >= 0 || y.re == Math.rint(y.re))) Complex(power(x.re, y.re)) else Complex.pow(x, y)
+                'm' -> if (x.isReal && y.isReal) Complex(eval(c)) else throw CalcException("mod wymaga liczb rzeczywistych")
+                else -> throw CalcException("Nieznany operator")
+            }
+        }
     }
 
     data class Call(val fn: Fn, val args: List<Node>) : Node {
         override fun eval(c: EvalContext) = fn.impl(c, args.map { it.eval(c) })
+
+        override fun exact(c: EvalContext): BigDecimal? {
+            if (fn.name !in EXACT_FNS) return null
+            val v = args.map { it.exact(c) ?: return null }
+            return when (fn.name) {
+                "abs" -> v[0].abs()
+                "floor" -> v[0].setScale(0, RoundingMode.FLOOR)
+                "ceil" -> v[0].setScale(0, RoundingMode.CEILING)
+                "trunc" -> v[0].setScale(0, RoundingMode.DOWN)
+                "frac" -> v[0].subtract(v[0].setScale(0, RoundingMode.DOWN))
+                "round" -> if (v.size == 1) v[0].setScale(0, RoundingMode.HALF_UP) else v[0].setScale(v[1].toInt().coerceIn(-100, 100), RoundingMode.HALF_UP)
+                "sign" -> BigDecimal(v[0].signum())
+                "min" -> v.min()
+                "max" -> v.max()
+                "sum" -> v.fold(BigDecimal.ZERO) { s, x -> s.add(x, EXACT) }
+                "avg" -> v.fold(BigDecimal.ZERO) { s, x -> s.add(x, EXACT) }.divide(BigDecimal(v.size), EXACT)
+                "re", "conj" -> v[0]
+                "im" -> BigDecimal.ZERO
+                else -> null
+            }
+        }
+
+        override fun cx(c: EvalContext): Complex {
+            val z = args.map { it.cx(c) }
+            // Pierwiastek czy logarytm liczby ujemnej mają w trybie zespolonym wynik zespolony.
+            val negativeDomain = fn.name in COMPLEX_ON_NEGATIVE && z[0].re < 0
+            if (z.all { it.isReal } && !negativeDomain && fn.name != "arg") return Complex(fn.impl(c, z.map { it.re }))
+            val x = z[0]
+            // Kąty w funkcjach trygonometrycznych liczb zespolonych przeliczamy jak dla rzeczywistych.
+            val toRad = c.toRad(1.0)
+            return when (fn.name) {
+                "sqrt" -> Complex.sqrt(x)
+                "cbrt" -> if (x.isReal) Complex(kotlin.math.cbrt(x.re)) else Complex.pow(x, Complex(1.0 / 3))
+                "root" -> Complex.pow(x, Complex.ONE / z[1])
+                "exp" -> Complex.exp(x)
+                "ln" -> Complex.ln(x)
+                "log" -> if (z.size == 1) Complex.ln(x) * (1 / kotlin.math.ln(10.0)) else Complex.ln(x) / Complex.ln(z[1])
+                "log2" -> Complex.ln(x) * (1 / kotlin.math.ln(2.0))
+                "sin" -> Complex.sin(x * toRad)
+                "cos" -> Complex.cos(x * toRad)
+                "tan" -> Complex.tan(x * toRad)
+                "sinh" -> Complex.sinh(x)
+                "cosh" -> Complex.cosh(x)
+                "tanh" -> Complex.tanh(x)
+                "abs" -> Complex(x.abs)
+                "arg" -> Complex(c.fromRad(x.arg))
+                "re" -> Complex(x.re)
+                "im" -> Complex(x.im)
+                "conj" -> x.conj()
+                "sum" -> z.fold(Complex(0.0)) { s, v -> s + v }
+                "avg" -> z.fold(Complex(0.0)) { s, v -> s + v } * (1.0 / z.size)
+                else -> throw CalcException("${fn.name}: tylko liczby rzeczywiste")
+            }
+        }
+
+        private companion object {
+            val EXACT_FNS = setOf("abs", "floor", "ceil", "trunc", "frac", "round", "sign", "min", "max", "sum", "avg", "re", "im", "conj")
+
+            /** Funkcje, które dla ujemnych argumentów rzeczywistych mają wynik zespolony. */
+            val COMPLEX_ON_NEGATIVE = setOf("sqrt", "ln", "log", "log2", "root")
+        }
     }
+}
+
+/** Potęga dokładna dla całkowitego wykładnika; null, gdy wynik byłby ogromny albo niewymierny. */
+private fun exactPower(x: BigDecimal, y: BigDecimal): BigDecimal? {
+    if (y.stripTrailingZeros().scale() > 0) return null
+    val n = runCatching { y.intValueExact() }.getOrNull() ?: return null
+    if (abs(n) > 9999 || abs(n).toLong() * maxOf(1, x.precision()) > 50_000) return null
+    if (x.signum() == 0 && n < 0) throw CalcException("Dzielenie przez zero")
+    return if (n >= 0) x.pow(n) else BigDecimal.ONE.divide(x.pow(-n), EXACT)
+}
+
+/** Czy wyrażenie używa jednostki urojonej i – wtedy liczymy na liczbach zespolonych. */
+fun Node.hasImag(): Boolean = when (this) {
+    is Node.Imag -> true
+    is Node.Neg -> a.hasImag()
+    is Node.Percent -> a.hasImag()
+    is Node.Fact -> a.hasImag()
+    is Node.Bin -> a.hasImag() || b.hasImag()
+    is Node.Call -> args.any { it.hasImag() }
+    else -> false
 }
 
 /** Definicja funkcji: nazwa, liczba argumentów (-1 = dowolna), opis do listy funkcji. */
@@ -189,6 +344,10 @@ object Functions {
         Fn("sum", 1, -1, "sum(a, b, …)", "Suma") { _, a -> a.sum() },
         Fn("avg", 1, -1, "avg(a, b, …)", "Średnia arytmetyczna") { _, a -> a.average() },
         Fn("hypot", 2, 2, "hypot(a, b)", "Przeciwprostokątna √(a²+b²)") { _, a -> kotlin.math.hypot(a[0], a[1]) },
+        f1("re", "re(z)", "Część rzeczywista liczby zespolonej") { _, x -> x },
+        f1("im", "im(z)", "Część urojona liczby zespolonej") { _, _ -> 0.0 },
+        f1("arg", "arg(z)", "Argument (kąt) liczby zespolonej") { c, x -> c.fromRad(atan2(0.0, x)) },
+        f1("conj", "conj(z)", "Sprzężenie liczby zespolonej") { _, x -> x },
         Fn("rand", 0, 0, "rand()", "Losowa liczba z [0, 1)") { _, _ -> Random.nextDouble() },
         Fn("randint", 2, 2, "randint(a, b)", "Losowa liczba całkowita z [a, b]") { _, a ->
             val lo = minOf(a[0], a[1]).toLong()
@@ -432,14 +591,14 @@ class Parser private constructor(private val src: String, private val variables:
             node = when {
                 ch == '!' -> { pos++; Node.Fact(node) }
                 ch == '%' -> { pos++; Node.Percent(node) }
-                ch == '⁻' && pos + 1 < src.length && src[pos + 1] == '¹' -> { pos += 2; Node.Bin('/', Node.Num(1.0), node) }
+                ch == '⁻' && pos + 1 < src.length && src[pos + 1] == '¹' -> { pos += 2; Node.Bin('/', Node.Num(1.0, "1"), node) }
                 ch in SUPERSCRIPTS -> {
                     var exp = 0
                     while (pos < src.length && src[pos] in SUPERSCRIPTS) {
                         exp = exp * 10 + SUPERSCRIPTS.indexOf(src[pos])
                         pos++
                     }
-                    Node.Bin('^', node, Node.Num(exp.toDouble()))
+                    Node.Bin('^', node, Node.Num(exp.toDouble(), exp.toString()))
                 }
                 ch == '°' -> { pos++; DegLiteral(Node.Bin('*', node, Node.Num(PI / 180))) }
                 else -> return node
@@ -450,7 +609,11 @@ class Parser private constructor(private val src: String, private val variables:
     private fun parsePrimary(): Node {
         val ch = peek() ?: throw CalcException("Niekompletne wyrażenie")
         when {
-            ch.isDigit() || ch == '.' -> return Node.Num(parseNumber())
+            ch.isDigit() || ch == '.' -> {
+                val start = pos
+                val v = parseNumber()
+                return Node.Num(v, src.substring(start, pos).let { if (it.startsWith(".")) "0$it" else it })
+            }
             ch == '(' -> {
                 pos++
                 if (peek() == ')') throw CalcException("Puste nawiasy")
@@ -547,6 +710,10 @@ class Parser private constructor(private val src: String, private val variables:
             pos += name.length
             if (startsOperand() || peek() == '-') return Node.Call(fn, listOf(parsePowerOperand()))
             pos = start
+        }
+        if (name == "i") {
+            pos += 1
+            return Node.Imag
         }
         val constant = Constants.values[name] ?: if (name != "E") Constants.values[name.lowercase()] else null
         if (constant != null) {

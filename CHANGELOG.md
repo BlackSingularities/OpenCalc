@@ -1,5 +1,17 @@
 # Historia zmian
 
+## 1.2.0
+
+- Dokładna arytmetyka dziesiętna: 0,1 + 0,2 = 0,3, kwoty i duże silnie (np. 100!) co do cyfry.
+- Liczby zespolone: jednostka i, wyniki w postaci a + bi, funkcje re, im, arg, conj, a √ i ln liczb ujemnych w działaniach z i.
+- Wersja angielska i wybór języka (domyślnie język systemu); kolejne języki dodaje się jednym plikiem słownika.
+- Jasny motyw (do wyboru: jak w systemie, ciemny, jasny).
+- Przelicznik walut z kursami średnimi NBP, działający też bez internetu na ostatnio pobranej tabeli.
+- Wykresy: krzywe parametryczne, wykresy biegunowe, nierówności (zamalowany obszar) i tabela wartości.
+- Widżet kalkulatora na ekran główny.
+- Dostępność: opisy klawiszy dla TalkBack, ogłaszanie wyniku, lepszy kontrast drobnych napisów.
+- Tablety i duże ekrany: osobny układ kalkulatora w poziomie, boczny pasek zakładek na szerokich oknach, ograniczona szerokość treści w pionie.
+
 ## 1.1.2
 
 - Bez żadnych wzmianek o GitHubie w aplikacji: nowy adres serwera aktualizacji, komunikaty błędów bez nazw zewnętrznych serwerów.

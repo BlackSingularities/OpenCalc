@@ -11,6 +11,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -28,10 +35,8 @@ import androidx.compose.material.icons.rounded.Handyman
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material.icons.rounded.SwapHoriz
-import androidx.compose.material3.Icon
 import androidx.compose.material3.ripple
 import androidx.compose.material3.Snackbar
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -65,24 +70,30 @@ private val tabs = listOf(
 fun AppRoot(vm: AppViewModel) {
     CompositionLocalProvider(LocalVm provides vm, LocalCorner provides vm.settings.corner.dp) {
         BackHandler(enabled = vm.tab != 0) { vm.selectTab(0) }
-        Box(Modifier.fillMaxSize().background(Palette.Ink).windowInsetsPadding(WindowInsets.safeDrawing)) {
-            Column(Modifier.fillMaxSize()) {
-                UpdateBanner(vm, Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
-                AnimatedContent(
-                    targetState = vm.tab,
-                    transitionSpec = { fadeIn() togetherWith fadeOut() },
-                    label = "tab",
-                    modifier = Modifier.weight(1f),
-                ) { t ->
-                    when (t) {
-                        0 -> CalcScreen(vm)
-                        1 -> GraphScreen(vm)
-                        2 -> ConvertScreen(vm)
-                        3 -> ToolsScreen(vm)
-                        else -> MoreScreen(vm)
+        BoxWithConstraints(Modifier.fillMaxSize().background(Palette.Ink).windowInsetsPadding(WindowInsets.safeDrawing)) {
+            // Szerokie okno (tablet poziomo, rozłożony składak) – zakładki w pionie z boku,
+            // żeby nie zabierały wysokości klawiaturze i wykresom.
+            val rail = maxWidth >= 840.dp && maxWidth > maxHeight
+            Row(Modifier.fillMaxSize()) {
+                if (rail) TabRail(vm.tab) { vm.selectTab(it) }
+                Column(Modifier.weight(1f).fillMaxHeight()) {
+                    UpdateBanner(vm, Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+                    AnimatedContent(
+                        targetState = vm.tab,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "tab",
+                        modifier = Modifier.weight(1f),
+                    ) { t ->
+                        when (t) {
+                            0 -> CalcScreen(vm)
+                            1 -> GraphScreen(vm)
+                            2 -> ConvertScreen(vm)
+                            3 -> ToolsScreen(vm)
+                            else -> MoreScreen(vm)
+                        }
                     }
+                    if (!rail) TabBar(vm.tab) { vm.selectTab(it) }
                 }
-                TabBar(vm.tab) { vm.selectTab(it) }
             }
             val msg = vm.message
             if (msg != null) {
@@ -92,7 +103,7 @@ fun AppRoot(vm: AppViewModel) {
                 }
                 Snackbar(
                     containerColor = Palette.PanelHigh,
-                    contentColor = Color.White,
+                    contentColor = Palette.Fg,
                     shape = buttonShape(),
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 84.dp, start = 24.dp, end = 24.dp),
                 ) { Text(msg) }
@@ -114,8 +125,8 @@ private fun TabBar(selected: Int, onSelect: (Int) -> Unit) {
     ) {
         tabs.forEachIndexed { i, tab ->
             val sel = i == selected
-            val bg by animateColorAsState(if (sel) Color.White else Color.Transparent, label = "tabBg")
-            val tint by animateColorAsState(if (sel) Color.Black else Palette.TextDim, label = "tabTint")
+            val bg by animateColorAsState(if (sel) Palette.Fg else Color.Transparent, label = "tabBg")
+            val tint by animateColorAsState(if (sel) Palette.Bg else Palette.TextDim, label = "tabTint")
             Column(
                 Modifier
                     .weight(1f)
@@ -125,6 +136,7 @@ private fun TabBar(selected: Int, onSelect: (Int) -> Unit) {
                         interactionSource = remember { MutableInteractionSource() },
                         indication = ripple(),
                     ) { onSelect(i) }
+                    .semantics { role = Role.Tab; this.selected = sel }
                     .padding(top = 7.dp, bottom = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -138,6 +150,36 @@ private fun TabBar(selected: Int, onSelect: (Int) -> Unit) {
                     maxLines = 1,
                     softWrap = false,
                 )
+            }
+        }
+    }
+}
+
+/** Zakładki w pionowym pasku po lewej – na szerokich ekranach zamiast dolnego paska. */
+@Composable
+private fun TabRail(selected: Int, onSelect: (Int) -> Unit) {
+    val shape = buttonShape()
+    Column(
+        Modifier.width(92.dp).fillMaxHeight().padding(horizontal = 6.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically),
+    ) {
+        tabs.forEachIndexed { i, tab ->
+            val sel = i == selected
+            val bg by animateColorAsState(if (sel) Palette.Fg else Color.Transparent, label = "railBg")
+            val tint by animateColorAsState(if (sel) Palette.Bg else Palette.TextDim, label = "railTint")
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .background(bg)
+                    .clickable { onSelect(i) }
+                    .semantics { role = Role.Tab; this.selected = sel }
+                    .padding(vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Icon(tab.icon, null, tint = tint, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.height(4.dp))
+                Text(tab.title, color = tint, fontSize = 11.sp, fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium, maxLines = 1, softWrap = false)
             }
         }
     }

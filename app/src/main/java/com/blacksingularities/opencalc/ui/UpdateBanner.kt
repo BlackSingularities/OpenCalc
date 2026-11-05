@@ -14,9 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.SystemUpdate
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,10 +50,10 @@ fun UpdateBanner(vm: AppViewModel, modifier: Modifier = Modifier) {
                 .padding(14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.SystemUpdate, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                Icon(Icons.Rounded.SystemUpdate, null, tint = Palette.Fg, modifier = Modifier.size(22.dp))
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(title, color = Palette.Fg, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                     Text(
                         if (u is UpdateState.Available) "Pobierze się i zainstaluje automatycznie" else "Nie zamykaj aplikacji",
                         color = Palette.TextDim,
@@ -70,7 +68,7 @@ fun UpdateBanner(vm: AppViewModel, modifier: Modifier = Modifier) {
                         fontSize = 13.sp,
                         modifier = Modifier
                             .clip(buttonShape())
-                            .background(Color.White)
+                            .background(Palette.Fg)
                             .clickable { vm.updateNow() }
                             .padding(horizontal = 14.dp, vertical = 8.dp),
                     )
@@ -92,8 +90,8 @@ fun UpdateBanner(vm: AppViewModel, modifier: Modifier = Modifier) {
             if (u is UpdateState.Downloading) {
                 LinearProgressIndicator(
                     progress = { u.progress },
-                    color = Color.White,
-                    trackColor = Color.White.copy(alpha = 0.12f),
+                    color = Palette.Fg,
+                    trackColor = Palette.Fg.copy(alpha = 0.12f),
                     modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
                 )
             }

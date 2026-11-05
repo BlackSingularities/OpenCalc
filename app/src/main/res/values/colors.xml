@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#EBF0FF</color>
+    <!-- Widżet: jasny motyw systemu; ciemny w values-night. -->
+    <color name="widget_bg">#FFFFFFFF</color>
+    <color name="widget_fg">#FF000000</color>
+    <color name="widget_dim">#C2000000</color>
+    <color name="widget_key">#0F000000</color>
+    <color name="widget_key_op">#1F000000</color>
+    <color name="widget_error">#FFC62828</color>
 </resources>

@@ -1,11 +1,11 @@
 package com.blacksingularities.opencalc.ui
 
+import com.blacksingularities.opencalc.i18n.I18n
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
 import com.blacksingularities.opencalc.engine.Finance
 import com.blacksingularities.opencalc.engine.Fmt
 import com.blacksingularities.opencalc.ui.theme.Palette
@@ -39,8 +40,8 @@ private fun AppViewModel.n(text: String): Double? =
 @Composable
 private fun SwitchLine(text: String, value: Boolean, onChange: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Text(text, color = Color.White, fontSize = 14.sp, modifier = Modifier.weight(1f))
-        Switch(value, onChange, colors = SwitchDefaults.colors(checkedTrackColor = Color.White, checkedThumbColor = Color.Black))
+        Text(text, color = Palette.Fg, fontSize = 14.sp, modifier = Modifier.weight(1f))
+        Switch(value, onChange, colors = SwitchDefaults.colors(checkedTrackColor = Palette.Fg, checkedThumbColor = Palette.Bg))
     }
 }
 
@@ -141,7 +142,7 @@ fun LoanTool(vm: AppViewModel) {
                     Fmt.short(row.capital, 2, vm.settings.style),
                     Fmt.short(row.interest, 2, vm.settings.style),
                     Fmt.short(row.balance, 0, vm.settings.style),
-                ).forEach { Text(it, color = Color.White, fontSize = 11.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f)) }
+                ).forEach { Text(it, color = Palette.Fg, fontSize = 11.sp, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f)) }
             }
         }
         PillButton(if (showAll) "Pokaż skrót" else "Pokaż wszystkie raty", primary = false) { showAll = !showAll }
@@ -195,7 +196,7 @@ private val dateFmt = DateTimeFormatter.ofPattern("d.MM.yyyy")
 private fun parseDate(t: String): LocalDate? = runCatching { LocalDate.parse(t.trim(), dateFmt) }.getOrNull()
     ?: runCatching { LocalDate.parse(t.trim()) }.getOrNull()
 
-private fun dayName(d: LocalDate) = d.dayOfWeek.getDisplayName(TextStyle.FULL, Locale.forLanguageTag("pl"))
+private fun dayName(d: LocalDate) = d.dayOfWeek.getDisplayName(TextStyle.FULL, I18n.locale)
 
 @Composable
 fun DatesTool(vm: AppViewModel) {
@@ -362,11 +363,52 @@ fun WordsTool(vm: AppViewModel) {
     val whole = abs(v).toLong()
     val grosze = Math.round((abs(v) - whole) * 100).toInt().coerceIn(0, 99)
     val sign = if (v < 0) "minus " else ""
+    if (!I18n.isSource) {
+        // Poza polskim – kwota po angielsku, z groszami/centami jako ułamek.
+        Section("Słownie") {
+            RawText(
+                sign + EnglishWords.say(whole) + " and ${"%02d".format(grosze)}/100",
+                color = Palette.Fg,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        return
+    }
     val words = sign + PolishWords.say(whole)
     Section("Słownie") {
         // Kwota zawsze w złotych, a grosze zawsze również słownie – bez przełączników.
         ResultRow("", "$words ${PolishWords.plural(whole, "złoty", "złote", "złotych")} ${"%02d".format(grosze)}/100", strong = true)
         ResultRow("Grosze słownie", PolishWords.say(grosze.toLong()) + " " + PolishWords.plural(grosze.toLong(), "grosz", "grosze", "groszy"))
+    }
+}
+
+/** Liczebniki główne po angielsku (skala krótka: thousand, million, billion, trillion). */
+object EnglishWords {
+    private val ones = listOf("", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen")
+    private val tens = listOf("", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety")
+    private val groups = listOf("", "thousand", "million", "billion", "trillion")
+
+    private fun triple(n: Int): String {
+        val parts = mutableListOf<String>()
+        if (n >= 100) parts += ones[n / 100] + " hundred"
+        val r = n % 100
+        if (r in 1..19) parts += ones[r] else if (r >= 20) parts += tens[r / 10] + (if (r % 10 > 0) "-" + ones[r % 10] else "")
+        return parts.joinToString(" ")
+    }
+
+    fun say(n: Long): String {
+        if (n == 0L) return "zero"
+        val parts = mutableListOf<String>()
+        var rest = n
+        var g = 0
+        while (rest > 0) {
+            val chunk = (rest % 1000).toInt()
+            if (chunk > 0) parts.add(0, triple(chunk) + if (groups[g].isEmpty()) "" else " " + groups[g])
+            rest /= 1000
+            g++
+        }
+        return parts.joinToString(" ")
     }
 }
 

@@ -22,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.blacksingularities.opencalc.i18n.tr
 import com.blacksingularities.opencalc.ui.theme.Palette
 
 /** Kształt przycisków z ustawień – wspólny dla klawiatury, chipów i paska zakładek. */
@@ -85,7 +85,7 @@ fun TextArea(value: String, onChange: (String) -> Unit, label: String, modifier:
         onValueChange = onChange,
         label = { Text(label) },
         minLines = minLines,
-        textStyle = androidx.compose.ui.text.TextStyle(fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default, fontSize = 16.sp, color = Color.White),
+        textStyle = androidx.compose.ui.text.TextStyle(fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default, fontSize = 16.sp, color = Palette.Fg),
         shape = RoundedCornerShape(14.dp),
         colors = fieldColors(),
         modifier = modifier.fillMaxWidth(),
@@ -94,11 +94,11 @@ fun TextArea(value: String, onChange: (String) -> Unit, label: String, modifier:
 
 @Composable
 fun fieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = Color.White,
+    focusedBorderColor = Palette.Fg,
     unfocusedBorderColor = Palette.Line,
-    focusedLabelColor = Color.White,
+    focusedLabelColor = Palette.Fg,
     unfocusedLabelColor = Palette.TextDim,
-    cursorColor = Color.White,
+    cursorColor = Palette.Fg,
 )
 
 @Composable
@@ -111,8 +111,8 @@ fun Section(title: String? = null, modifier: Modifier = Modifier, content: @Comp
     ) {
         // Nagłówek grupy wersalikami nad półprzezroczystym panelem – jak w ustawieniach OpenPDF.
         if (title != null) Text(
-            title.uppercase(),
-            color = Color.White,
+            tr(title).uppercase(),
+            color = Palette.Fg,
             fontWeight = FontWeight.Bold,
             fontSize = 11.sp,
             letterSpacing = 1.4.sp,
@@ -153,7 +153,7 @@ fun ResultRow(label: String, value: String, strong: Boolean = false, onLongClick
         Text(label, color = Palette.TextDim, fontSize = 14.sp, modifier = Modifier.weight(1f))
         Text(
             value,
-            color = Color.White,
+            color = Palette.Fg,
             fontSize = if (strong) 20.sp else 15.sp,
             fontWeight = if (strong) FontWeight.Bold else FontWeight.Medium,
             fontFamily = FontFamily.Monospace,
@@ -171,12 +171,12 @@ fun <T> ChipRow(items: List<T>, selected: T, label: (T) -> String, onSelect: (T)
             val sel = item == selected
             Text(
                 label(item),
-                color = if (sel) Color.Black else Color.White,
+                color = if (sel) Palette.Bg else Palette.Fg,
                 fontSize = 13.sp,
                 fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium,
                 modifier = Modifier
                     .clip(buttonShape())
-                    .background(if (sel) Color.White else Color.White.copy(alpha = 0.07f))
+                    .background(if (sel) Palette.Fg else Palette.Fg.copy(alpha = 0.07f))
                     .clickable { onSelect(item) }
                     .padding(horizontal = 14.dp, vertical = 8.dp),
             )
@@ -188,12 +188,12 @@ fun <T> ChipRow(items: List<T>, selected: T, label: (T) -> String, onSelect: (T)
 fun PillButton(text: String, modifier: Modifier = Modifier, primary: Boolean = true, onClick: () -> Unit) {
     Text(
         text,
-        color = if (primary) Color.Black else Color.White,
+        color = if (primary) Palette.Bg else Palette.Fg,
         fontWeight = FontWeight.Bold,
         fontSize = 14.sp,
         modifier = modifier
             .clip(buttonShape())
-            .background(if (primary) Color.White else Palette.KeyOp)
+            .background(if (primary) Palette.Fg else Palette.KeyOp)
             .clickable(onClick = onClick)
             .padding(horizontal = 18.dp, vertical = 10.dp),
     )
@@ -214,7 +214,7 @@ fun VSpace(h: Int) = Spacer(Modifier.height(h.dp))
 
 /** Ikona w kółku z delikatnym tłem – wiersze list jak w OpenPDF. */
 @Composable
-fun RowIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color = Color.White) {
+fun RowIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color = Palette.Fg) {
     androidx.compose.foundation.layout.Box(
         Modifier
             .size(32.dp)

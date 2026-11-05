@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="WidgetKey">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_margin">2dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textColor">@color/widget_fg</item>
+        <item name="android:background">@drawable/widget_key</item>
+        <item name="android:maxLines">1</item>
+    </style>
+    <style name="WidgetKey.Op">
+        <item name="android:background">@drawable/widget_key_op</item>
+    </style>
+    <style name="WidgetKey.Clear">
+        <item name="android:background">@drawable/widget_key_op</item>
+        <item name="android:textColor">@color/widget_error</item>
+    </style>
+    <style name="WidgetKey.Eq">
+        <item name="android:background">@drawable/widget_key_eq</item>
+        <item name="android:textColor">@color/widget_bg</item>
+    </style>
+    <style name="WidgetRow">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">0dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">horizontal</item>
+    </style>
+</resources>

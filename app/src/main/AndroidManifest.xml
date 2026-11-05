@@ -26,5 +26,18 @@
         </activity>
 
         <receiver android:name=".update.UpdateReceiver" android:exported="false" />
+
+        <!-- Widżet kalkulatora na ekranie głównym; klawisze wysyłają rozgłoszenia do tej samej klasy. -->
+        <receiver
+            android:name=".widget.CalcWidget"
+            android:exported="false"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_calc_info" />
+        </receiver>
     </application>
 </manifest>

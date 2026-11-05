@@ -1,5 +1,7 @@
 package com.blacksingularities.opencalc.ui
 
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.widthIn
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -38,9 +40,7 @@ import androidx.compose.material.icons.rounded.Savings
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.Tag
 import androidx.compose.material.icons.rounded.TextFields
-import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -94,7 +94,7 @@ private fun ToolCard(t: Tool, onClick: () -> Unit) {
         Column(Modifier.fillMaxWidth()) {
             Text(
                 t.title,
-                color = Color.White,
+                color = Palette.Fg,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
                 lineHeight = 19.sp,
@@ -109,12 +109,12 @@ private fun ToolCard(t: Tool, onClick: () -> Unit) {
         Icon(
             t.icon,
             null,
-            tint = Color.White,
+            tint = Palette.Fg,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .size(28.dp)
                 .clip(buttonShape())
-                .background(Color.White.copy(alpha = 0.10f))
+                .background(Palette.Fg.copy(alpha = 0.10f))
                 .padding(5.dp),
         )
     }
@@ -137,12 +137,12 @@ fun ToolsScreen(vm: AppViewModel) {
         BackHandler { open = null }
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { open = null }) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Wróć", tint = Color.White) }
+                IconButton(onClick = { open = null }) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Wróć", tint = Palette.Fg) }
                 Spacer(Modifier.width(4.dp))
-                Text(tool.title, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(tool.title, color = Palette.Fg, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
             Column(
-                Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp).padding(bottom = 16.dp),
+                Modifier.fillMaxSize().wrapContentWidth().widthIn(max = 760.dp).verticalScroll(rememberScrollState()).padding(horizontal = 12.dp).padding(bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 tool.content(vm)

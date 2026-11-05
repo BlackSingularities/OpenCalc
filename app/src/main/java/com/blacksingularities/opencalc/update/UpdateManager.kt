@@ -1,5 +1,6 @@
 package com.blacksingularities.opencalc.update
 
+import com.blacksingularities.opencalc.i18n.tr
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -51,8 +52,8 @@ object UpdateManager {
         val pending = PendingIntent.getActivity(context, 0, launch, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val n = NotificationCompat.Builder(context, Notifier.CHANNEL_UPDATES)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("OpenCalc zaktualizowany do ${BuildConfig.VERSION_NAME}")
-            .setContentText("Dotknij, aby otworzyć aplikację")
+            .setContentTitle(tr("OpenCalc zaktualizowany do {}", BuildConfig.VERSION_NAME))
+            .setContentText(tr("Dotknij, aby otworzyć aplikację"))
             .setContentIntent(pending)
             .setAutoCancel(true)
             .build()
@@ -176,7 +177,7 @@ class UpdateReceiver : BroadcastReceiver() {
             else -> {
                 val msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE) ?: "kod $status"
                 if (status != PackageInstaller.STATUS_FAILURE_ABORTED) {
-                    Toast.makeText(context, "Aktualizacja nieudana: $msg", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, tr("Aktualizacja nieudana: {}", msg), Toast.LENGTH_LONG).show()
                 }
             }
         }
