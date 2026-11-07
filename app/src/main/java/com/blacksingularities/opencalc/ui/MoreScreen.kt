@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material.icons.rounded.Coffee
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.Language
@@ -146,6 +147,9 @@ fun MoreScreen(vm: AppViewModel) {
             )
             ActionLine(Icons.Rounded.Language, "redzikowski.com", "Inne aplikacje autora") { uri.openUri(AUTHOR_URL) }
             ActionLine(Icons.Rounded.Email, "kontakt@redzikowski.com", "Napisz do autora") { uri.openUri("mailto:kontakt@redzikowski.com") }
+            com.blacksingularities.opencalc.feedback.FeedbackEntry { open ->
+                ActionLine(Icons.Rounded.BugReport, com.blacksingularities.opencalc.feedback.FeedbackText.entryTitle, com.blacksingularities.opencalc.feedback.FeedbackText.entrySubtitle) { open() }
+            }
             ActionLine(Icons.Rounded.Coffee, "Postaw kawę", "Wesprzyj rozwój na buycoffee.to") { uri.openUri(COFFEE_URL) }
         }
         Row(Modifier.fillMaxWidth().padding(bottom = 20.dp), horizontalArrangement = Arrangement.Center) {

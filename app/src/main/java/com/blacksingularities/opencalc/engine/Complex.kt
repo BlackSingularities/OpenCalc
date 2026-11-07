@@ -30,6 +30,8 @@ data class Complex(val re: Double, val im: Double = 0.0) {
 
     fun conj() = Complex(re, -im)
 
+    fun format(style: NumberStyle): String = formatComplex(this, style)
+
     /** Usuwa śmieci zmiennoprzecinkowe: i² = −1, a nie −1 + 1,2·10⁻¹⁶i. */
     fun clean(): Complex {
         val scale = maxOf(1.0, abs(re), abs(im))

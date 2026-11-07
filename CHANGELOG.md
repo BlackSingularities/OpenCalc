@@ -1,5 +1,11 @@
 # Historia zmian
 
+## 1.2.1
+
+- Poprawka budowania: wersja 1.2.0 nie powstała (błąd kompilacji w CI) – jej zmiany wchodzą w tę wersję.
+- Zgłaszanie błędów i sugestii: nowa pozycja „Zgłoś błąd lub sugestię” – opis trafia prosto do autora przez redzikowski.com, e-mail jest opcjonalny.
+- Po nieoczekiwanym zamknięciu aplikacja przy następnym uruchomieniu proponuje wysłanie raportu o błędzie – tylko za zgodą użytkownika.
+
 ## 1.2.0
 
 - Dokładna arytmetyka dziesiętna: 0,1 + 0,2 = 0,3, kwoty i duże silnie (np. 100!) co do cyfry.

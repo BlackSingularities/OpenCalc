@@ -237,10 +237,3 @@ object Analysis {
     }
 }
 
-data class Complex(val re: Double, val im: Double) {
-    fun format(style: NumberStyle): String = when {
-        im == 0.0 -> Fmt.number(re, style)
-        re == 0.0 -> Fmt.number(im, style) + "i"
-        else -> Fmt.number(re, style) + (if (im < 0) " − " else " + ") + Fmt.number(abs(im), style) + "i"
-    }
-}

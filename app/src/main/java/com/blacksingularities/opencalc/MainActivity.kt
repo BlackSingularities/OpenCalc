@@ -1,5 +1,7 @@
 package com.blacksingularities.opencalc
 
+import com.blacksingularities.opencalc.feedback.Feedback
+import com.blacksingularities.opencalc.feedback.CrashReportPrompt
 import android.graphics.Color
 import android.os.Bundle
 import android.view.WindowManager
@@ -22,6 +24,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Feedback.install(this, "opencalc")
         applyBars(dark = true)
         window.isNavigationBarContrastEnforced = false
         UpdateManager.clearUpdatedNotification(this)
@@ -34,6 +37,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(dark) { applyBars(dark) }
             I18n.setting = vm.settings.language
             OpenCalcTheme(dark) {
+                CrashReportPrompt()
                 val keepOn = vm.settings.keepScreenOn
                 LaunchedEffect(keepOn) {
                     if (keepOn) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
