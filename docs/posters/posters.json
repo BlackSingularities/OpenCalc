@@ -1,0 +1,23 @@
+{
+  "slug": "opencalc",
+  "name": "OpenCalc",
+  "label": "kalkulator naukowy · wykresy · przeliczniki",
+  "icon": "icon.png",
+  "url": "https://redzikowski.com/portfolio/opencalc",
+  "posters": [
+    {
+      "platform": "android",
+      "file": "android.png",
+      "title": "Liczy, rysuje i *przelicza*",
+      "lead": "Kalkulator naukowy z podglądem wyniku, wykresy do ośmiu funkcji, 17 kategorii przeliczników i 16 gotowych narzędzi.",
+      "shots": [
+        { "src": "../screenshots/android/01-kalkulator.png", "caption": "Kalkulator" },
+        { "src": "../screenshots/android/02-wykresy.png", "caption": "Wykresy" },
+        { "src": "../screenshots/android/03-waluty.png", "caption": "Waluty NBP" },
+        { "src": "../screenshots/android/04-kredyt.png", "caption": "Kredyt" }
+      ],
+      "features": ["wynik w trakcie pisania", "miejsca zerowe i ekstrema", "kursy średnie NBP", "raty i harmonogram", "VAT, procenty, daty", "macierze i równania"],
+      "meta": "Android 10 lub nowszy"
+    }
+  ]
+}

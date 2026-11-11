@@ -1,5 +1,13 @@
 # OpenCalc
 
+<!-- posters:start -->
+<p align="center">
+  <img src="docs/posters/android.png" alt="OpenCalc – Android" width="460">
+</p>
+
+<p align="center"><a href="https://redzikowski.com/portfolio/opencalc">redzikowski.com/portfolio/opencalc</a></p>
+<!-- posters:end -->
+
 <img src="artwork/app-icon.png" alt="OpenCalc" width="128" />
 
 **Kalkulator naukowy, wykresy, przeliczniki jednostek i kilkanaście narzędzi w jednej aplikacji na Androida.** Czarno-biały interfejs w stylu OpenPDF, bez reklam, śledzenia i konta – wszystko liczy się w telefonie.
