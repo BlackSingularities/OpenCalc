@@ -1,5 +1,9 @@
 # Historia zmian
 
+## 1.2.2
+
+- Ikona aplikacji bez tła: na ekranie głównym widać sam kolorowy emblemat, spójnie z trybem „Bez tła” w OpenDesktop.
+
 ## 1.2.1
 
 - Poprawka budowania: wersja 1.2.0 nie powstała (błąd kompilacji w CI) – jej zmiany wchodzą w tę wersję.
